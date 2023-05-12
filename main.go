@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-const workerCount = 1000
+const concurrency = 10
 
 func main() {
 	if err := run(); err != nil {
@@ -26,7 +26,8 @@ func main() {
 
 func run() error {
 	// Initialize servers
-	if err := storage.StartNSQDEmbeddedServer(); err != nil {
+	nsqdServer, err := storage.NewNSQDServer()
+	if err != nil {
 		return fmt.Errorf("start nsqd embedded server: %w", err)
 	}
 	queue, err := storage.NewQueue(path.Join("data/visited_urls"))
@@ -50,8 +51,12 @@ func run() error {
 	// Wait until SIGTERM
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	<-sigChan
-	fmt.Println("Stopping signal received")
+	select {
+	case <-sigChan:
+	case <-nsqdServer.Error():
+		log.Println("nsqd server error! scraping will be stopped: ", err)
+	}
+	log.Println("Stopping signal received")
 
 	// Wait until closed
 	queue.StopSignal()
@@ -59,6 +64,7 @@ func run() error {
 	consumer.Stop()
 	<-consumer.StopChan
 	queue.StopProducer()
+	nsqdServer.Stop()
 	if err := queue.CloseDB(); err != nil {
 		log.Println("Queue CloseDB error:", err)
 	}
@@ -102,7 +108,7 @@ func startWorkers(queue *storage.Queue) (*nsq.Consumer, error) {
 		return nil, fmt.Errorf("nsq new consumer: %w", err)
 	}
 
-	consumer.AddConcurrentHandlers(worker.Worker(queue), 10)
+	consumer.AddConcurrentHandlers(worker.Worker(queue), concurrency)
 
 	if err := consumer.ConnectToNSQD(storage.NsqServer); err != nil {
 		return nil, fmt.Errorf("connect to nsqd: %w", err)
