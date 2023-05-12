@@ -3,15 +3,19 @@ package http
 import (
 	"fmt"
 	"github.com/valyala/fasthttp"
-	"github.com/valyala/fasthttp/fasthttpproxy"
-	"os"
 	"time"
 )
 
 var client = &fasthttp.Client{
-	Name:        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36",
-	ReadTimeout: time.Second * 180,
-	Dial:        fasthttpproxy.FasthttpHTTPDialer(os.Getenv("HTTP_PROXY")),
+	NoDefaultUserAgentHeader:      true,
+	DisableHeaderNamesNormalizing: true,
+	ReadTimeout:                   time.Second * 180,
+	//Dial:        fasthttpproxy.FasthttpHTTPDialer(os.Getenv("HTTP_PROXY")),
+	Dial: (&fasthttp.TCPDialer{
+		Concurrency:      1000,
+		DNSCacheDuration: time.Hour,
+	}).Dial,
+	MaxResponseBodySize: 1024 * 1024 * 10,
 }
 
 func Get(requestURI string) ([]byte, error) {
@@ -25,8 +29,18 @@ func Get(requestURI string) ([]byte, error) {
 
 	// Set new request
 	req.SetRequestURI(requestURI)
-	req.Header.Set(fasthttp.HeaderAccept, "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
+	req.Header.Set(fasthttp.HeaderAccept, "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
 	req.Header.Set(fasthttp.HeaderAcceptEncoding, "gzip, deflate, br")
+	req.Header.Set(fasthttp.HeaderAcceptLanguage, "en-US,en;q=0.9")
+	req.Header.Set("Sec-Ch-Ua", `"Google Chrome";v="113", "Chromium";v="113", "Not-A.Brand";v="24"`)
+	req.Header.Set("Sec-Ch-Ua-Mobile", "?0")
+	req.Header.Set("Sec-Ch-Ua-Platform", `"macOS"`)
+	req.Header.Set("Sec-Fetch-Dest", "document")
+	req.Header.Set("Sec-Fetch-Mode", "navigate")
+	req.Header.Set("Sec-Fetch-Site", "none")
+	req.Header.Set("Sec-Fetch-User", "?1")
+	req.Header.Set("Upgrade-Insecure-Requests", "1")
+	req.Header.Set(fasthttp.HeaderUserAgent, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36")
 
 	// Do request
 	err := client.Do(req, res)
