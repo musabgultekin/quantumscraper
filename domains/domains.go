@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const (
@@ -40,7 +41,11 @@ func NewDomainLoader() (*DomainLoader, error) {
 
 func (dl *DomainLoader) NextDomain() (string, error) {
 	if dl.scanner.Scan() {
-		return dl.scanner.Text(), nil
+		splitted := strings.Split(dl.scanner.Text(), ",")
+		if len(splitted) < 2 {
+			return "", fmt.Errorf("domain line is invalid: %v", dl.scanner.Text())
+		}
+		return splitted[1], nil
 	}
 	if err := dl.scanner.Err(); err != nil {
 		return "", fmt.Errorf("scanner error: %w", err)
