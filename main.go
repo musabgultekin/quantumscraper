@@ -10,41 +10,58 @@ import (
 	"os"
 	"os/signal"
 	"path"
-	"strings"
 	"syscall"
 )
 
+const workerCount = 1000
+const nsqServer = "localhost:4150"
+const nsqTopic = "topic"
+const nsqChannel = "channel"
+
 func main() {
 	if err := run(); err != nil {
-		log.Println("failed", err)
+		log.Println("error:", err)
 		os.Exit(1)
 	}
 }
 
 func run() error {
+	// Initialize servers
 	storage.StartNSQDEmbeddedServer()
-
-	var err error
-	consumer, err := startConsumer()
-	if err != nil {
-		return fmt.Errorf("consumer: %w", err)
-	}
-
-	visitedURLStorage, err := storage.NewVisitedURLStorage(path.Join(os.TempDir(), "visited_urls"))
+	visitedURLStorage, err := storage.NewVisitedURLStorage(path.Join("visited_urls"))
 	if err != nil {
 		return fmt.Errorf("visited url storage creation: %w", err)
 	}
 
-	producer, err := nsq.NewProducer("localhost:4150", nsq.NewConfig())
+	// Queue domains
+	go func() {
+		if err := startQueueingDomains(visitedURLStorage); err != nil {
+			log.Fatal(err)
+		}
+	}()
+
+	// Start workers
+	if err := startWorkers(visitedURLStorage); err != nil {
+		return fmt.Errorf("worker process: %w", err)
+	}
+
+	// Wait until closed
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	<-sigChan
+
+	return nil
+}
+
+func startQueueingDomains(visitedURLStorage *storage.VisitedURLStorage) error {
+	producer, err := nsq.NewProducer(nsqServer, nsq.NewConfig())
 	if err != nil {
 		return fmt.Errorf("nsq new producer: %w", err)
 	}
-
 	domainLoader, err := domains.NewDomainLoader()
 	if err != nil {
 		return fmt.Errorf("domain loader: %w", err)
 	}
-
 	for {
 		domain, err := domainLoader.NextDomain()
 		if err != nil {
@@ -55,44 +72,62 @@ func run() error {
 		}
 
 		targetURL := "https://" + domain
-		err = visitedURLStorage.AddURL(targetURL)
+		added, err := visitedURLStorage.AddURL(targetURL)
 		if err != nil {
-			if strings.Contains(err.Error(), "already exists") {
-				fmt.Println("already exists")
-				continue
-			} else {
-				return fmt.Errorf("visitedURL storage")
-			}
+			return fmt.Errorf("failed to add URL to visited storage: %w", err)
+		}
+		if !added {
+			log.Println("URL already exists:", targetURL)
+			continue
 		}
 
-		if err := producer.Publish("topic", []byte(targetURL)); err != nil {
+		if err := producer.Publish(nsqTopic, []byte(targetURL)); err != nil {
 			return fmt.Errorf("producer publish: %w", err)
 		}
 	}
-
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	<-sigChan
-	consumer.Stop()
-
 	return nil
 }
 
 // startConsumer start consumer and wait for messages
-func startConsumer() (*nsq.Consumer, error) {
-	consumer, err := nsq.NewConsumer("topic", "channel", nsq.NewConfig())
+func startWorkers(visitedURLStorage *storage.VisitedURLStorage) error {
+	producer, err := nsq.NewProducer(nsqServer, nsq.NewConfig())
 	if err != nil {
-		return nil, fmt.Errorf("nsq new consumer: %w", err)
+		return fmt.Errorf("nsq new producer: %w", err)
 	}
 
-	consumer.AddHandler(nsq.HandlerFunc(func(message *nsq.Message) error {
-		fmt.Println(string(message.Body))
+	consumer, err := nsq.NewConsumer(nsqTopic, nsqChannel, nsq.NewConfig())
+	if err != nil {
+		return fmt.Errorf("nsq new consumer: %w", err)
+	}
+
+	consumer.AddConcurrentHandlers(worker(visitedURLStorage, producer), 1000)
+
+	if err := consumer.ConnectToNSQD(nsqServer); err != nil {
+		return fmt.Errorf("connect to nsqd: %w", err)
+	}
+
+	<-consumer.StopChan
+	return nil
+}
+
+func worker(visitedURLStorage *storage.VisitedURLStorage, producer *nsq.Producer) nsq.HandlerFunc {
+	return func(message *nsq.Message) error {
+		log.Println(string(message.Body))
+
+		targetURL := string(message.Body) + "&page=1"
+		added, err := visitedURLStorage.AddURL(targetURL)
+		if err != nil {
+			return fmt.Errorf("failed to add URL to visited storage: %w", err)
+		}
+		if !added {
+			log.Println("URL already exists:", targetURL)
+			return nil
+		}
+
+		if err := producer.Publish(nsqTopic, []byte(targetURL)); err != nil {
+			return fmt.Errorf("producer publish: %w", err)
+		}
+
 		return nil
-	}))
-
-	if err := consumer.ConnectToNSQD("localhost:4150"); err != nil {
-		return nil, fmt.Errorf("connect to nsqd: %w", err)
 	}
-
-	return consumer, nil
 }

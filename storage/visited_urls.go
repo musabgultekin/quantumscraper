@@ -3,6 +3,7 @@ package storage
 import (
 	"fmt"
 	badger "github.com/dgraph-io/badger/v3"
+	"strings"
 )
 
 type VisitedURLStorage struct {
@@ -28,8 +29,8 @@ func (store *VisitedURLStorage) Close() error {
 	return nil
 }
 
-func (store *VisitedURLStorage) AddURL(url string) error {
-	return store.db.Update(func(txn *badger.Txn) error {
+func (store *VisitedURLStorage) AddURL(url string) (bool, error) {
+	err := store.db.Update(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(url))
 		if err != nil && err != badger.ErrKeyNotFound {
 			return fmt.Errorf("failed to get url from badger db: %w", err)
@@ -40,4 +41,12 @@ func (store *VisitedURLStorage) AddURL(url string) error {
 		err = txn.Set([]byte(url), []byte{})
 		return err
 	})
+
+	if err != nil {
+		if strings.Contains(err.Error(), "already exists") {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
