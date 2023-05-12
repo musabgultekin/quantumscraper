@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"path"
 	"syscall"
+	"time"
 )
 
 const workerCount = 1000
@@ -25,8 +26,10 @@ func main() {
 
 func run() error {
 	// Initialize servers
-	storage.StartNSQDEmbeddedServer()
-	queue, err := storage.NewQueue(path.Join("queue_data"))
+	if err := storage.StartNSQDEmbeddedServer(); err != nil {
+		return fmt.Errorf("start nsqd embedded server: %w", err)
+	}
+	queue, err := storage.NewQueue(path.Join("data/visited_urls"))
 	if err != nil {
 		return fmt.Errorf("visited url storage creation: %w", err)
 	}
@@ -39,19 +42,31 @@ func run() error {
 	}()
 
 	// Start workers
-	if err := startWorkers(queue); err != nil {
+	consumer, err := startWorkers(queue)
+	if err != nil {
 		return fmt.Errorf("worker process: %w", err)
 	}
 
-	// Wait until closed
+	// Wait until SIGTERM
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
+	fmt.Println("Stopping signal received")
+
+	// Wait until closed
+	queue.StopSignal()
+	time.Sleep(time.Millisecond * 100)
+	consumer.Stop()
+	<-consumer.StopChan
+	queue.StopProducer()
+	if err := queue.CloseDB(); err != nil {
+		log.Println("Queue CloseDB error:", err)
+	}
 
 	return nil
 }
 
-func startQueueingDomains(visitedURLStorage *storage.Queue) error {
+func startQueueingDomains(queue *storage.Queue) error {
 	domainLoader, err := domains.NewDomainLoader()
 	if err != nil {
 		return fmt.Errorf("domain loader: %w", err)
@@ -65,8 +80,12 @@ func startQueueingDomains(visitedURLStorage *storage.Queue) error {
 			return fmt.Errorf("next domain: %w", err)
 		}
 
+		if queue.IsStopped() {
+			break
+		}
+
 		targetURL := "https://" + domain
-		if err := visitedURLStorage.AddURL(targetURL); err != nil {
+		if err := queue.AddURL(targetURL); err != nil {
 			return fmt.Errorf("failed to add URL to visited storage: %w", err)
 		}
 
@@ -75,20 +94,18 @@ func startQueueingDomains(visitedURLStorage *storage.Queue) error {
 }
 
 // startConsumer start consumer and wait for messages
-func startWorkers(visitedURLStorage *storage.Queue) error {
+func startWorkers(queue *storage.Queue) (*nsq.Consumer, error) {
 	consumerConfig := nsq.NewConfig()
 	consumerConfig.MaxInFlight = 10
 	consumer, err := nsq.NewConsumer(storage.NsqTopic, storage.NsqChannel, consumerConfig)
 	if err != nil {
-		return fmt.Errorf("nsq new consumer: %w", err)
+		return nil, fmt.Errorf("nsq new consumer: %w", err)
 	}
 
-	consumer.AddConcurrentHandlers(worker.Worker(visitedURLStorage), 100)
+	consumer.AddConcurrentHandlers(worker.Worker(queue), 10)
 
 	if err := consumer.ConnectToNSQD(storage.NsqServer); err != nil {
-		return fmt.Errorf("connect to nsqd: %w", err)
+		return nil, fmt.Errorf("connect to nsqd: %w", err)
 	}
-
-	<-consumer.StopChan
-	return nil
+	return consumer, nil
 }

@@ -2,15 +2,15 @@ package storage
 
 import (
 	"fmt"
-	badger "github.com/dgraph-io/badger/v3"
+	"github.com/dgraph-io/badger/v3"
 	"github.com/nsqio/go-nsq"
-	"log"
 	"strings"
 )
 
 type Queue struct {
 	db       *badger.DB
 	producer *nsq.Producer
+	stopped  bool
 }
 
 func NewQueue(path string) (*Queue, error) {
@@ -32,13 +32,26 @@ func NewQueue(path string) (*Queue, error) {
 	}, nil
 }
 
-func (store *Queue) Close() error {
+func (store *Queue) StopSignal() {
+	store.stopped = true
+}
+
+func (store *Queue) StopProducer() {
+	store.producer.Stop()
+}
+
+func (store *Queue) CloseDB() error {
 	if err := store.db.Close(); err != nil {
 		return fmt.Errorf("failed to close badger db: %w", err)
 	}
 	return nil
 }
 
+func (store *Queue) IsStopped() bool {
+	return store.stopped
+}
+
+// TODO: Canonicalize links before everything
 func (store *Queue) AddURL(targetURL string) error {
 	err := store.db.Update(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(targetURL))
@@ -46,7 +59,7 @@ func (store *Queue) AddURL(targetURL string) error {
 			return fmt.Errorf("failed to get url from badger db: %w", err)
 		}
 		if item != nil {
-			log.Println("URL already exists:", targetURL)
+			//log.Println("URL already exists:", targetURL)
 			return fmt.Errorf("url %s already exists", targetURL)
 		}
 		err = txn.Set([]byte(targetURL), []byte{})
@@ -61,7 +74,7 @@ func (store *Queue) AddURL(targetURL string) error {
 		}
 	}
 
-	// Publish if it doesn't exists
+	// Publish if it doesn't exist
 	if err := store.producer.Publish(NsqTopic, []byte(targetURL)); err != nil {
 		return fmt.Errorf("producer publish: %w", err)
 	}

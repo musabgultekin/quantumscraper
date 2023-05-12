@@ -1,6 +1,7 @@
 package http
 
 import (
+	"crypto/tls"
 	"fmt"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/fasthttpproxy"
@@ -17,6 +18,9 @@ var client = &fasthttp.Client{
 	//	Concurrency:      1000,
 	//	DNSCacheDuration: time.Hour,
 	//}).Dial,
+	TLSConfig: &tls.Config{
+		InsecureSkipVerify: true,
+	},
 }
 
 func Get(requestURI string) ([]byte, error) {
