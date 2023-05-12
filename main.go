@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/musabgultekin/quantumscraper/domains"
 	"github.com/musabgultekin/quantumscraper/storage"
+	"github.com/musabgultekin/quantumscraper/worker"
 	"github.com/nsqio/go-nsq"
 	"io"
 	"log"
@@ -14,9 +15,6 @@ import (
 )
 
 const workerCount = 1000
-const nsqServer = "localhost:4150"
-const nsqTopic = "topic"
-const nsqChannel = "channel"
 
 func main() {
 	if err := run(); err != nil {
@@ -34,7 +32,7 @@ func run() error {
 	}
 
 	// Shared Producer
-	producer, err := nsq.NewProducer(nsqServer, nsq.NewConfig())
+	producer, err := nsq.NewProducer(storage.NsqServer, nsq.NewConfig())
 	if err != nil {
 		return fmt.Errorf("nsq new producer: %w", err)
 	}
@@ -83,7 +81,7 @@ func startQueueingDomains(visitedURLStorage *storage.VisitedURLStorage, producer
 			continue
 		}
 
-		if err := producer.Publish(nsqTopic, []byte(targetURL)); err != nil {
+		if err := producer.Publish(storage.NsqTopic, []byte(targetURL)); err != nil {
 			return fmt.Errorf("producer publish: %w", err)
 		}
 	}
@@ -92,39 +90,17 @@ func startQueueingDomains(visitedURLStorage *storage.VisitedURLStorage, producer
 
 // startConsumer start consumer and wait for messages
 func startWorkers(visitedURLStorage *storage.VisitedURLStorage, producer *nsq.Producer) error {
-	consumer, err := nsq.NewConsumer(nsqTopic, nsqChannel, nsq.NewConfig())
+	consumer, err := nsq.NewConsumer(storage.NsqTopic, storage.NsqChannel, nsq.NewConfig())
 	if err != nil {
 		return fmt.Errorf("nsq new consumer: %w", err)
 	}
 
-	consumer.AddConcurrentHandlers(worker(visitedURLStorage, producer), 1000)
+	consumer.AddConcurrentHandlers(worker.Worker(visitedURLStorage, producer), 1000)
 
-	if err := consumer.ConnectToNSQD(nsqServer); err != nil {
+	if err := consumer.ConnectToNSQD(storage.NsqServer); err != nil {
 		return fmt.Errorf("connect to nsqd: %w", err)
 	}
 
 	<-consumer.StopChan
 	return nil
-}
-
-func worker(visitedURLStorage *storage.VisitedURLStorage, producer *nsq.Producer) nsq.HandlerFunc {
-	return func(message *nsq.Message) error {
-		log.Println(string(message.Body))
-
-		targetURL := string(message.Body) + "&page=1"
-		added, err := visitedURLStorage.AddURL(targetURL)
-		if err != nil {
-			return fmt.Errorf("failed to add URL to visited storage: %w", err)
-		}
-		if !added {
-			log.Println("URL already exists:", targetURL)
-			return nil
-		}
-
-		if err := producer.Publish(nsqTopic, []byte(targetURL)); err != nil {
-			return fmt.Errorf("producer publish: %w", err)
-		}
-
-		return nil
-	}
 }

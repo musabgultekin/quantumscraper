@@ -5,6 +5,10 @@ import (
 	"log"
 )
 
+const NsqServer = "localhost:4150"
+const NsqTopic = "topic"
+const NsqChannel = "channel"
+
 func StartNSQDEmbeddedServer() {
 	go func() {
 		nSQD, err := nsqd.New(nsqd.NewOptions())
