@@ -41,16 +41,3 @@ func (store *VisitedURLStorage) AddURL(url string) error {
 		return err
 	})
 }
-
-func (store *VisitedURLStorage) IsVisited(url string) (bool, error) {
-	var visited bool
-	err := store.db.View(func(txn *badger.Txn) error {
-		item, err := txn.Get([]byte(url))
-		if err != nil && err != badger.ErrKeyNotFound {
-			return fmt.Errorf("failed to get url from badger db: %w", err)
-		}
-		visited = item != nil
-		return nil
-	})
-	return visited, err
-}

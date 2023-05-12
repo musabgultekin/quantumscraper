@@ -9,6 +9,8 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path"
+	"strings"
 	"syscall"
 )
 
@@ -28,10 +30,10 @@ func run() error {
 		return fmt.Errorf("consumer: %w", err)
 	}
 
-	//visitedURLStorage, err := storage.NewVisitedURLStorage(path.Join(os.TempDir(), "visited_urls"))
-	//if err != nil {
-	//	return fmt.Errorf("visited url storage creation: %w", err)
-	//}
+	visitedURLStorage, err := storage.NewVisitedURLStorage(path.Join(os.TempDir(), "visited_urls"))
+	if err != nil {
+		return fmt.Errorf("visited url storage creation: %w", err)
+	}
 
 	producer, err := nsq.NewProducer("localhost:4150", nsq.NewConfig())
 	if err != nil {
@@ -52,7 +54,18 @@ func run() error {
 			return fmt.Errorf("next domain: %w", err)
 		}
 
-		if err := producer.Publish("topic", []byte("https://"+domain)); err != nil {
+		targetURL := "https://" + domain
+		err = visitedURLStorage.AddURL(targetURL)
+		if err != nil {
+			if strings.Contains(err.Error(), "already exists") {
+				fmt.Println("already exists")
+				continue
+			} else {
+				return fmt.Errorf("visitedURL storage")
+			}
+		}
+
+		if err := producer.Publish("topic", []byte(targetURL)); err != nil {
 			return fmt.Errorf("producer publish: %w", err)
 		}
 	}
@@ -60,7 +73,6 @@ func run() error {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
-	// Gracefully stop the consumer.
 	consumer.Stop()
 
 	return nil
