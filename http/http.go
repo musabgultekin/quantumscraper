@@ -3,19 +3,20 @@ package http
 import (
 	"fmt"
 	"github.com/valyala/fasthttp"
+	"github.com/valyala/fasthttp/fasthttpproxy"
 	"time"
 )
 
 var client = &fasthttp.Client{
 	NoDefaultUserAgentHeader:      true,
 	DisableHeaderNamesNormalizing: true,
+	MaxResponseBodySize:           1024 * 1024 * 10,
 	ReadTimeout:                   time.Second * 180,
-	//Dial:        fasthttpproxy.FasthttpHTTPDialer(os.Getenv("HTTP_PROXY")),
-	Dial: (&fasthttp.TCPDialer{
-		Concurrency:      1000,
-		DNSCacheDuration: time.Hour,
-	}).Dial,
-	MaxResponseBodySize: 1024 * 1024 * 10,
+	Dial:                          fasthttpproxy.FasthttpProxyHTTPDialerTimeout(time.Second * 180),
+	//Dial: (&fasthttp.TCPDialer{
+	//	Concurrency:      1000,
+	//	DNSCacheDuration: time.Hour,
+	//}).Dial,
 }
 
 func Get(requestURI string) ([]byte, error) {
@@ -45,12 +46,12 @@ func Get(requestURI string) ([]byte, error) {
 	// Do request
 	err := client.Do(req, res)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("client do: %w", err)
 	}
 
 	body, err := handleResponse(res)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("handle response: %w", err)
 	}
 
 	return body, nil
@@ -60,7 +61,7 @@ func handleResponse(res *fasthttp.Response) ([]byte, error) {
 	// Read and decode response body
 	body, err := decodeResponse(res)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode response: %w", err)
 	}
 
 	return body, nil
