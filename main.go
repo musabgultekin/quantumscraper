@@ -33,15 +33,21 @@ func run() error {
 		return fmt.Errorf("visited url storage creation: %w", err)
 	}
 
+	// Shared Producer
+	producer, err := nsq.NewProducer(nsqServer, nsq.NewConfig())
+	if err != nil {
+		return fmt.Errorf("nsq new producer: %w", err)
+	}
+
 	// Queue domains
 	go func() {
-		if err := startQueueingDomains(visitedURLStorage); err != nil {
+		if err := startQueueingDomains(visitedURLStorage, producer); err != nil {
 			log.Fatal(err)
 		}
 	}()
 
 	// Start workers
-	if err := startWorkers(visitedURLStorage); err != nil {
+	if err := startWorkers(visitedURLStorage, producer); err != nil {
 		return fmt.Errorf("worker process: %w", err)
 	}
 
@@ -53,11 +59,7 @@ func run() error {
 	return nil
 }
 
-func startQueueingDomains(visitedURLStorage *storage.VisitedURLStorage) error {
-	producer, err := nsq.NewProducer(nsqServer, nsq.NewConfig())
-	if err != nil {
-		return fmt.Errorf("nsq new producer: %w", err)
-	}
+func startQueueingDomains(visitedURLStorage *storage.VisitedURLStorage, producer *nsq.Producer) error {
 	domainLoader, err := domains.NewDomainLoader()
 	if err != nil {
 		return fmt.Errorf("domain loader: %w", err)
@@ -89,12 +91,7 @@ func startQueueingDomains(visitedURLStorage *storage.VisitedURLStorage) error {
 }
 
 // startConsumer start consumer and wait for messages
-func startWorkers(visitedURLStorage *storage.VisitedURLStorage) error {
-	producer, err := nsq.NewProducer(nsqServer, nsq.NewConfig())
-	if err != nil {
-		return fmt.Errorf("nsq new producer: %w", err)
-	}
-
+func startWorkers(visitedURLStorage *storage.VisitedURLStorage, producer *nsq.Producer) error {
 	consumer, err := nsq.NewConsumer(nsqTopic, nsqChannel, nsq.NewConfig())
 	if err != nil {
 		return fmt.Errorf("nsq new consumer: %w", err)
