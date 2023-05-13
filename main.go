@@ -7,7 +7,6 @@ import (
 	"github.com/musabgultekin/quantumscraper/storage"
 	"github.com/musabgultekin/quantumscraper/urlloader"
 	"github.com/musabgultekin/quantumscraper/worker"
-	"github.com/nsqio/go-nsq"
 	"log"
 	"os"
 	"os/signal"
@@ -76,7 +75,7 @@ func run() error {
 	}()
 
 	// Start workers
-	consumer, err := startWorkers(cfg.Crawler.Concurrency, queue)
+	consumer, err := worker.StartWorkers(cfg.Crawler.Concurrency, queue)
 	if err != nil {
 		return fmt.Errorf("worker process: %w", err)
 	}
@@ -133,21 +132,4 @@ func startQueueingURLs(urlListURL string, urlListPath string, queue *storage.Que
 
 	}
 	return nil
-}
-
-// startConsumer start consumer and wait for messages
-func startWorkers(concurrency int, queue *storage.Queue) (*nsq.Consumer, error) {
-	consumerConfig := nsq.NewConfig()
-	consumerConfig.MaxInFlight = 100
-	consumer, err := nsq.NewConsumer(storage.NsqTopic, storage.NsqChannel, consumerConfig)
-	if err != nil {
-		return nil, fmt.Errorf("nsq new consumer: %w", err)
-	}
-
-	consumer.AddConcurrentHandlers(worker.Worker(queue), concurrency)
-
-	if err := consumer.ConnectToNSQD(storage.NsqServer); err != nil {
-		return nil, fmt.Errorf("connect to nsqd: %w", err)
-	}
-	return consumer, nil
 }

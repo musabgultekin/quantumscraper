@@ -8,7 +8,23 @@ import (
 	"log"
 )
 
-func Worker(queue *storage.Queue) nsq.HandlerFunc {
+func StartWorkers(concurrency int, queue *storage.Queue) (*nsq.Consumer, error) {
+	consumerConfig := nsq.NewConfig()
+	consumerConfig.MaxInFlight = 100
+	consumer, err := nsq.NewConsumer(storage.NsqTopic, storage.NsqChannel, consumerConfig)
+	if err != nil {
+		return nil, fmt.Errorf("nsq new consumer: %w", err)
+	}
+
+	consumer.AddConcurrentHandlers(worker(queue), concurrency)
+
+	if err := consumer.ConnectToNSQD(storage.NsqServer); err != nil {
+		return nil, fmt.Errorf("connect to nsqd: %w", err)
+	}
+	return consumer, nil
+}
+
+func worker(queue *storage.Queue) nsq.HandlerFunc {
 	return func(message *nsq.Message) error {
 		targetURL := string(message.Body)
 
