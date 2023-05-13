@@ -17,6 +17,7 @@ var client = &fasthttp.Client{
 	NoDefaultUserAgentHeader:      true,
 	DisableHeaderNamesNormalizing: true,
 	MaxResponseBodySize:           1024 * 1024 * 10,
+	ReadBufferSize:                4096 * 2,
 	ReadTimeout:                   time.Second * 180,
 	Dial:                          fasthttpproxy.FasthttpProxyHTTPDialerTimeout(time.Second * 60),
 	//Dial: (&fasthttp.TCPDialer{

@@ -3,12 +3,14 @@ module github.com/musabgultekin/quantumscraper
 go 1.20
 
 require (
+	github.com/ardanlabs/conf/v3 v3.1.5
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/nsqio/go-nsq v1.1.0
 	github.com/nsqio/nsq v1.2.1
 	github.com/stretchr/testify v1.4.0
 	github.com/valyala/fasthttp v1.47.0
 	golang.org/x/net v0.8.0
+	golang.org/x/text v0.8.0
 )
 
 require (
@@ -34,6 +36,5 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	go.opencensus.io v0.22.5 // indirect
 	golang.org/x/sys v0.6.0 // indirect
-	golang.org/x/text v0.8.0 // indirect
 	gopkg.in/yaml.v2 v2.2.2 // indirect
 )

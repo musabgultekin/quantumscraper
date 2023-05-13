@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"github.com/ardanlabs/conf/v3"
 	"github.com/musabgultekin/quantumscraper/storage"
 	"github.com/musabgultekin/quantumscraper/urlloader"
 	"github.com/musabgultekin/quantumscraper/worker"
@@ -14,7 +16,7 @@ import (
 	"time"
 )
 
-const concurrency = 1000
+var build = "develop"
 
 func main() {
 	if err := run(); err != nil {
@@ -24,7 +26,39 @@ func main() {
 }
 
 func run() error {
-	// Initialize servers
+
+	// -------------------------------------------------------------------------
+	// Configuration
+
+	cfg := struct {
+		conf.Version
+		Crawler struct {
+			Concurrency int `conf:"default:100"`
+		}
+		UrlList struct {
+			URL       string `conf:"default:https://tranco-list.eu/download/Z249G/full"`
+			CachePath string `conf:"default:data/url_cache.csv"`
+		}
+	}{
+		Version: conf.Version{
+			Build: build,
+			Desc:  "MIT",
+		},
+	}
+
+	const prefix = "SCRAPER"
+	help, err := conf.Parse(prefix, &cfg)
+	if err != nil {
+		if errors.Is(err, conf.ErrHelpWanted) {
+			fmt.Println(help)
+			return nil
+		}
+		return fmt.Errorf("parsing config: %w", err)
+	}
+
+	// -------------------------------------------------------------------------
+	// App Starting
+
 	nsqdServer, err := storage.NewNSQDServer()
 	if err != nil {
 		return fmt.Errorf("start nsqd embedded server: %w", err)
@@ -36,22 +70,25 @@ func run() error {
 
 	// Queue URLs
 	go func() {
-		if err := startQueueingURLs("https://tranco-list.eu/download/Z249G/full", "data/urls.csv", queue); err != nil {
+		if err := startQueueingURLs(cfg.UrlList.URL, cfg.UrlList.CachePath, queue); err != nil {
 			log.Fatal(err)
 		}
 	}()
 
 	// Start workers
-	consumer, err := startWorkers(queue)
+	consumer, err := startWorkers(cfg.Crawler.Concurrency, queue)
 	if err != nil {
 		return fmt.Errorf("worker process: %w", err)
 	}
 
+	// -------------------------------------------------------------------------
+	// Shutdown
+
 	// Wait until SIGTERM
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
 	select {
-	case <-sigChan:
+	case <-shutdown:
 	case <-nsqdServer.Error():
 		log.Println("nsqd server error! scraping will be stopped: ", err)
 	}
@@ -98,7 +135,7 @@ func startQueueingURLs(urlListURL string, urlListPath string, queue *storage.Que
 }
 
 // startConsumer start consumer and wait for messages
-func startWorkers(queue *storage.Queue) (*nsq.Consumer, error) {
+func startWorkers(concurrency int, queue *storage.Queue) (*nsq.Consumer, error) {
 	consumerConfig := nsq.NewConfig()
 	consumerConfig.MaxInFlight = 100
 	consumer, err := nsq.NewConsumer(storage.NsqTopic, storage.NsqChannel, consumerConfig)
