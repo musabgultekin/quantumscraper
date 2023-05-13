@@ -121,6 +121,7 @@ func startQueueingURLs(urlListURL string, urlListPath string, queue *storage.Que
 			return fmt.Errorf("next domain: %w", err)
 		}
 		if targetURL == "" {
+			log.Println("URL Loader end of file")
 			break // end of file
 		}
 		if queue.IsStopped() {
