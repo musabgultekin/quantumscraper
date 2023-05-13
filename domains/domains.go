@@ -15,12 +15,12 @@ const (
 	tmpFile   = "domain_list.txt"
 )
 
-type DomainLoader struct {
+type URLLoader struct {
 	file    *os.File
 	scanner *bufio.Scanner
 }
 
-func NewDomainLoader() (*DomainLoader, error) {
+func New() (*URLLoader, error) {
 	tmpFilePath := filepath.Join(os.TempDir(), tmpFile)
 	_, err := os.Stat(tmpFilePath)
 	if os.IsNotExist(err) {
@@ -36,16 +36,16 @@ func NewDomainLoader() (*DomainLoader, error) {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 	scanner := bufio.NewScanner(file)
-	return &DomainLoader{file: file, scanner: scanner}, nil
+	return &URLLoader{file: file, scanner: scanner}, nil
 }
 
-func (dl *DomainLoader) NextDomain() (string, error) {
+func (dl *URLLoader) NextURL() (string, error) {
 	if dl.scanner.Scan() {
 		splitted := strings.Split(dl.scanner.Text(), ",")
 		if len(splitted) < 2 {
 			return "", fmt.Errorf("domain line is invalid: %v", dl.scanner.Text())
 		}
-		return splitted[1], nil
+		return "https://" + splitted[1], nil
 	}
 	if err := dl.scanner.Err(); err != nil {
 		return "", fmt.Errorf("scanner error: %w", err)
@@ -53,7 +53,7 @@ func (dl *DomainLoader) NextDomain() (string, error) {
 	return "", io.EOF
 }
 
-func (dl *DomainLoader) Close() error {
+func (dl *URLLoader) Close() error {
 	err := dl.file.Close()
 	if err != nil {
 		return fmt.Errorf("failed to close file: %w", err)

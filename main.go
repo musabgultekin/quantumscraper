@@ -73,12 +73,12 @@ func run() error {
 }
 
 func startQueueingDomains(queue *storage.Queue) error {
-	domainLoader, err := domains.NewDomainLoader()
+	domainLoader, err := domains.New()
 	if err != nil {
-		return fmt.Errorf("domain loader: %w", err)
+		return fmt.Errorf("url loader: %w", err)
 	}
 	for {
-		domain, err := domainLoader.NextDomain()
+		targetURL, err := domainLoader.NextURL()
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -90,7 +90,6 @@ func startQueueingDomains(queue *storage.Queue) error {
 			break
 		}
 
-		targetURL := "https://" + domain
 		if err := queue.AddURL(targetURL); err != nil {
 			return fmt.Errorf("failed to add URL to visited storage: %w", err)
 		}
