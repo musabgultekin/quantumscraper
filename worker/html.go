@@ -3,12 +3,13 @@ package worker
 import (
 	"bytes"
 	"fmt"
-	"golang.org/x/net/html"
 	"io"
 	"log"
 	"net/url"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/net/html"
 )
 
 func extractLinksFromHTML(pageURL string, body []byte) (fullURLs []string, err error) {
@@ -55,7 +56,7 @@ func extractRawLinksFromHTML(body []byte) ([]string, error) {
 					key, val, moreAttr = z.TagAttr()
 					if string(key) == "href" && len(val) != 0 {
 						valString := strings.TrimSpace(string(val))
-						if strings.HasPrefix(valString, "#") {
+						if !strings.HasPrefix(valString, "http") {
 							break
 						}
 						acceptedExtensions := []string{".asp", ".aspx", ".htm", ".html", ".jsp", ".jsx", ".php", ".php3", ".php4", ".php5", ".phtml"}
