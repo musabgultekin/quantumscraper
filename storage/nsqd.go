@@ -2,13 +2,14 @@ package storage
 
 import (
 	"fmt"
-	"github.com/nsqio/nsq/nsqd"
 	"os"
 	"sync"
+
+	"github.com/nsqio/nsq/nsqd"
 )
 
 const NsqServer = "localhost:4150"
-const NsqTopic = "topic"
+const NsqTopic = "scraper_"
 const NsqChannel = "channel"
 const dataPath = "data/nsqd" // Add your data path here
 

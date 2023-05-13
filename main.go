@@ -3,16 +3,17 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/ardanlabs/conf/v3"
-	"github.com/musabgultekin/quantumscraper/storage"
-	"github.com/musabgultekin/quantumscraper/urlloader"
-	"github.com/musabgultekin/quantumscraper/worker"
 	"log"
 	"os"
 	"os/signal"
 	"path"
 	"syscall"
 	"time"
+
+	"github.com/ardanlabs/conf/v3"
+	"github.com/musabgultekin/quantumscraper/storage"
+	"github.com/musabgultekin/quantumscraper/urlloader"
+	"github.com/musabgultekin/quantumscraper/worker"
 )
 
 var build = "develop"
@@ -62,7 +63,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("start nsqd embedded server: %w", err)
 	}
-	queue, err := storage.NewQueue(path.Join("data/visited_urls"))
+	queue, err := storage.NewQueue(path.Join("data/visited_urls"), cfg.Crawler.Concurrency)
 	if err != nil {
 		return fmt.Errorf("visited url storage creation: %w", err)
 	}
@@ -78,7 +79,7 @@ func run() error {
 	}()
 
 	// Start workers
-	consumer, err := worker.StartWorkers(cfg.Crawler.Concurrency, queue)
+	consumers, err := worker.StartWorkers(cfg.Crawler.Concurrency, queue)
 	if err != nil {
 		return fmt.Errorf("worker process: %w", err)
 	}
@@ -99,8 +100,12 @@ func run() error {
 	// Wait until closed
 	queue.StopSignal()
 	time.Sleep(time.Millisecond * 100)
-	consumer.Stop()
-	<-consumer.StopChan
+	for _, consumer := range consumers {
+		consumer.Stop()
+	}
+	for _, consumer := range consumers {
+		<-consumer.StopChan
+	}
 	queue.StopProducer()
 	nsqdServer.Stop()
 	if err := queue.CloseDB(); err != nil {

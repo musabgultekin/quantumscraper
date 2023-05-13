@@ -2,10 +2,12 @@ package worker
 
 import (
 	"fmt"
+	"log"
+	"strconv"
+
 	"github.com/musabgultekin/quantumscraper/http"
 	"github.com/musabgultekin/quantumscraper/storage"
 	"github.com/nsqio/go-nsq"
-	"log"
 )
 
 type Worker struct {
@@ -38,19 +40,21 @@ func (worker *Worker) HandleMessage(message *nsq.Message) error {
 	return nil
 }
 
-func StartWorkers(concurrency int, queue *storage.Queue) (*nsq.Consumer, error) {
+func StartWorkers(concurrency int, queue *storage.Queue) (consumers []*nsq.Consumer, err error) {
 	// Consumer initialization
-	consumerConfig := nsq.NewConfig()
-	consumerConfig.MaxInFlight = concurrency // Setting MaxInFlight to concurrency is not strictly required. We do it for performance reasons
-	consumer, err := nsq.NewConsumer(storage.NsqTopic, storage.NsqChannel, consumerConfig)
-	if err != nil {
-		return nil, fmt.Errorf("nsq new consumer: %w", err)
+	for i := 0; i < concurrency; i++ {
+		consumerConfig := nsq.NewConfig()
+		consumerConfig.MaxInFlight = 10
+		consumer, err := nsq.NewConsumer(storage.NsqTopic+strconv.Itoa(i), storage.NsqChannel, consumerConfig)
+		if err != nil {
+			return nil, fmt.Errorf("nsq new consumer: %w", err)
+		}
+		consumer.AddHandler(&Worker{queue: queue})
+		if err := consumer.ConnectToNSQD(storage.NsqServer); err != nil {
+			return nil, fmt.Errorf("connect to nsqd: %w", err)
+		}
+		consumers = append(consumers, consumer)
 	}
-	consumer.AddConcurrentHandlers(&Worker{queue: queue}, concurrency)
 
-	// Start consuming
-	if err := consumer.ConnectToNSQD(storage.NsqServer); err != nil {
-		return nil, fmt.Errorf("connect to nsqd: %w", err)
-	}
-	return consumer, nil
+	return
 }
