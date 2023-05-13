@@ -16,7 +16,7 @@ func Worker(queue *storage.Queue) nsq.HandlerFunc {
 
 		resp, err := http.Get(targetURL)
 		if err != nil {
-			fmt.Println("http get err:", err)
+			log.Println("http get err:", err, targetURL)
 			return nil
 		}
 
