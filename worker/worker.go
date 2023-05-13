@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strconv"
@@ -8,15 +9,20 @@ import (
 	"github.com/musabgultekin/quantumscraper/http"
 	"github.com/musabgultekin/quantumscraper/storage"
 	"github.com/nsqio/go-nsq"
+	"golang.org/x/time/rate"
 )
 
 type Worker struct {
-	queue *storage.Queue
+	queue       *storage.Queue
+	rateLimiter *rate.Limiter
 }
 
 func (worker *Worker) HandleMessage(message *nsq.Message) error {
-	targetURL := string(message.Body)
+	if err := worker.rateLimiter.Wait(context.TODO()); err != nil {
+		return fmt.Errorf("rate limiter: %w", err)
+	}
 
+	targetURL := string(message.Body)
 	log.Println("Fetching", targetURL)
 
 	resp, err := http.Get(targetURL)
@@ -41,15 +47,19 @@ func (worker *Worker) HandleMessage(message *nsq.Message) error {
 }
 
 func StartWorkers(concurrency int, queue *storage.Queue) (consumers []*nsq.Consumer, err error) {
-	// Consumer initialization
 	for i := 0; i < concurrency; i++ {
+		// Consumer initialization
 		consumerConfig := nsq.NewConfig()
-		consumerConfig.MaxInFlight = 10
+		consumerConfig.MaxInFlight = 1
 		consumer, err := nsq.NewConsumer(storage.NsqTopic+strconv.Itoa(i), storage.NsqChannel, consumerConfig)
 		if err != nil {
 			return nil, fmt.Errorf("nsq new consumer: %w", err)
 		}
-		consumer.AddHandler(&Worker{queue: queue})
+		consumer.AddHandler(&Worker{
+			queue:       queue,
+			rateLimiter: rate.NewLimiter(1, 1),
+		})
+		// Connect
 		if err := consumer.ConnectToNSQD(storage.NsqServer); err != nil {
 			return nil, fmt.Errorf("connect to nsqd: %w", err)
 		}
