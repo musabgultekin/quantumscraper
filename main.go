@@ -6,7 +6,6 @@ import (
 	"github.com/musabgultekin/quantumscraper/urlloader"
 	"github.com/musabgultekin/quantumscraper/worker"
 	"github.com/nsqio/go-nsq"
-	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -37,7 +36,7 @@ func run() error {
 
 	// Queue URLs
 	go func() {
-		if err := startQueueingURLs("https://tranco-list.eu/download/Z249G/full", queue); err != nil {
+		if err := startQueueingURLs("https://tranco-list.eu/download/Z249G/full", "data/urls.csv", queue); err != nil {
 			log.Fatal(err)
 		}
 	}()
@@ -72,24 +71,24 @@ func run() error {
 	return nil
 }
 
-func startQueueingURLs(urlListURL string, queue *storage.Queue) error {
-	urlLoader, err := urlloader.New(urlListURL)
+func startQueueingURLs(urlListURL string, urlListPath string, queue *storage.Queue) error {
+	urlLoader, err := urlloader.New(urlListURL, urlListPath)
 	if err != nil {
 		return fmt.Errorf("url loader: %w", err)
 	}
+	defer urlLoader.Close()
+
 	for {
-		targetURL, err := urlLoader.NextURL()
+		targetURL, err := urlLoader.Next()
 		if err != nil {
-			if err == io.EOF {
-				break
-			}
 			return fmt.Errorf("next domain: %w", err)
 		}
-
+		if targetURL == "" {
+			break // end of file
+		}
 		if queue.IsStopped() {
 			break
 		}
-
 		if err := queue.AddURL(targetURL); err != nil {
 			return fmt.Errorf("failed to add URL to visited storage: %w", err)
 		}

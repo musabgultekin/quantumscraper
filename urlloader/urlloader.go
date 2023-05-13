@@ -6,77 +6,58 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
-	"strings"
-)
-
-const (
-	tmpFile = "domain_list.txt"
 )
 
 type URLLoader struct {
-	url     string
 	file    *os.File
 	scanner *bufio.Scanner
 }
 
-func New(url string) (*URLLoader, error) {
-	tmpFilePath := filepath.Join(os.TempDir(), tmpFile)
-	_, err := os.Stat(tmpFilePath)
+func New(url string, filepath string) (*URLLoader, error) {
+	_, err := os.Stat(filepath)
 	if os.IsNotExist(err) {
-		err := downloadFile(url, tmpFilePath)
+		resp, err := http.Get(url)
 		if err != nil {
-			return nil, fmt.Errorf("failed to download file: %w", err)
+			return nil, fmt.Errorf("failed to load URL: %w", err)
 		}
-	} else if err != nil {
-		return nil, fmt.Errorf("failed to stat file: %w", err)
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("failed to load URL: status code %d", resp.StatusCode)
+		}
+
+		out, err := os.Create(filepath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create file: %w", err)
+		}
+		defer out.Close()
+
+		_, err = io.Copy(out, resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to write to file: %w", err)
+		}
 	}
-	file, err := os.Open(tmpFilePath)
+
+	file, err := os.Open(filepath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
-	scanner := bufio.NewScanner(file)
-	return &URLLoader{url: url, file: file, scanner: scanner}, nil
+
+	return &URLLoader{
+		file:    file,
+		scanner: bufio.NewScanner(file),
+	}, nil
 }
 
-func (dl *URLLoader) NextURL() (string, error) {
-	if dl.scanner.Scan() {
-		splitted := strings.Split(dl.scanner.Text(), ",")
-		if len(splitted) < 2 {
-			return "", fmt.Errorf("domain line is invalid: %v", dl.scanner.Text())
-		}
-		return "https://" + splitted[1], nil
+func (l *URLLoader) Next() (string, error) {
+	if l.scanner.Scan() {
+		return l.scanner.Text(), nil
 	}
-	if err := dl.scanner.Err(); err != nil {
-		return "", fmt.Errorf("scanner error: %w", err)
+	if err := l.scanner.Err(); err != nil {
+		return "", fmt.Errorf("failed to read line: %w", err)
 	}
-	return "", io.EOF
+	return "", nil // no more lines to read
 }
 
-func (dl *URLLoader) Close() error {
-	err := dl.file.Close()
-	if err != nil {
-		return fmt.Errorf("failed to close file: %w", err)
-	}
-	return nil
-}
-
-func downloadFile(url string, filepath string) error {
-	resp, err := http.Get(url)
-	if err != nil {
-		return fmt.Errorf("failed to get file from url: %w", err)
-	}
-	defer resp.Body.Close()
-
-	out, err := os.Create(filepath)
-	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to copy file: %w", err)
-	}
-	return nil
+func (l *URLLoader) Close() error {
+	return l.file.Close()
 }
