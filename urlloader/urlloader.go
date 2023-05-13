@@ -1,21 +1,24 @@
 package urlloader
 
 import (
-	"bufio"
+	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 )
 
 type URLLoader struct {
-	file    *os.File
-	scanner *bufio.Scanner
+	file   *os.File
+	reader *csv.Reader
 }
 
 func New(url string, filepath string) (*URLLoader, error) {
 	_, err := os.Stat(filepath)
 	if os.IsNotExist(err) {
+		log.Println("Downloading", url)
 		resp, err := http.Get(url)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load URL: %w", err)
@@ -42,20 +45,32 @@ func New(url string, filepath string) (*URLLoader, error) {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 
+	reader := csv.NewReader(file)
+
+	// Read and discard the header
+	_, err = reader.Read()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read header: %w", err)
+	}
+
 	return &URLLoader{
-		file:    file,
-		scanner: bufio.NewScanner(file),
+		file:   file,
+		reader: reader,
 	}, nil
 }
 
 func (l *URLLoader) Next() (string, error) {
-	if l.scanner.Scan() {
-		return l.scanner.Text(), nil
+	record, err := l.reader.Read()
+	if err == io.EOF {
+		return "", nil // no more lines to read
 	}
-	if err := l.scanner.Err(); err != nil {
+	if err != nil {
 		return "", fmt.Errorf("failed to read line: %w", err)
 	}
-	return "", nil // no more lines to read
+	if len(record) == 0 {
+		return "", errors.New("no columns in the current row")
+	}
+	return record[0], nil // return only the first column
 }
 
 func (l *URLLoader) Close() error {
