@@ -7,6 +7,8 @@ import (
 	"io"
 	"log"
 	"net/url"
+	"path/filepath"
+	"strings"
 )
 
 func extractLinksFromHTML(pageURL string, body []byte) (fullURLs []string, err error) {
@@ -24,7 +26,7 @@ func extractLinksFromHTML(pageURL string, body []byte) (fullURLs []string, err e
 	for _, htmlLinkString := range htmlLinkStrings {
 		absoluteHTMLink, err := pageURLParsed.Parse(htmlLinkString)
 		if err != nil {
-			log.Println("WARN: page link parse error:", err)
+			log.Println("WARN: page link parse error:", err, pageURL)
 			continue
 		}
 		fullURLs = append(fullURLs, absoluteHTMLink.String())
@@ -52,11 +54,29 @@ func extractRawLinksFromHTML(body []byte) ([]string, error) {
 					var key, val []byte
 					key, val, moreAttr = z.TagAttr()
 					if string(key) == "href" && len(val) != 0 {
-						links = append(links, string(val))
+						valString := strings.TrimSpace(string(val))
+						if strings.HasPrefix(valString, "#") {
+							break
+						}
+						acceptedExtensions := []string{".asp", ".aspx", ".htm", ".html", ".jsp", ".jsx", ".php", ".php3", ".php4", ".php5", ".phtml"}
+						ext := filepath.Ext(valString)
+						if ext == "" || contains(acceptedExtensions, ext) {
+							links = append(links, valString)
+						}
 						break
 					}
 				}
 			}
 		}
 	}
+}
+
+// contains checks if a slice contains a string
+func contains(s []string, str string) bool {
+	for _, v := range s {
+		if v == str {
+			return true
+		}
+	}
+	return false
 }
