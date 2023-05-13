@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/musabgultekin/quantumscraper/domains"
 	"github.com/musabgultekin/quantumscraper/storage"
+	"github.com/musabgultekin/quantumscraper/urlloader"
 	"github.com/musabgultekin/quantumscraper/worker"
 	"github.com/nsqio/go-nsq"
 	"io"
@@ -35,9 +35,9 @@ func run() error {
 		return fmt.Errorf("visited url storage creation: %w", err)
 	}
 
-	// Queue domains
+	// Queue URLs
 	go func() {
-		if err := startQueueingDomains(queue); err != nil {
+		if err := startQueueingURLs(queue); err != nil {
 			log.Fatal(err)
 		}
 	}()
@@ -72,20 +72,20 @@ func run() error {
 	return nil
 }
 
-func startQueueingDomains(queue *storage.Queue) error {
-	domainLoader, err := domains.New()
+func startQueueingURLs(queue *storage.Queue) error {
+	urlLoader, err := urlloader.New()
 	if err != nil {
 		return fmt.Errorf("url loader: %w", err)
 	}
 	for {
-		targetURL, err := domainLoader.NextURL()
+		targetURL, err := urlLoader.NextURL()
 		if err != nil {
 			if err == io.EOF {
 				break
 			}
 			return fmt.Errorf("next domain: %w", err)
 		}
-
+ 
 		if queue.IsStopped() {
 			break
 		}

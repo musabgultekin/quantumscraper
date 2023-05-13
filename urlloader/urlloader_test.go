@@ -1,4 +1,4 @@
-package domains
+package urlloader
 
 import (
 	"errors"
@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestDomainLoader(t *testing.T) {
+func TestURLLoader(t *testing.T) {
 	dl, err := New()
 	assert.NoError(t, err, "failed to initialize URLLoader")
 
@@ -17,10 +17,10 @@ func TestDomainLoader(t *testing.T) {
 	_, err = os.Stat(filepath.Join(os.TempDir(), tmpFile))
 	assert.NoError(t, err, "file does not exist in tmp directory")
 
-	// Check if we can read a domain from the file
-	domain, err := dl.NextURL()
+	// Check if we can read a url from the file
+	nextURL, err := dl.NextURL()
 	assert.NoError(t, err, "failed to read next url")
-	assert.NotEmpty(t, domain, "domain should not be empty")
+	assert.NotEmpty(t, nextURL, "url should not be empty")
 
 	// Check if EOF error is returned when we reach end of the file
 	var lastErr error

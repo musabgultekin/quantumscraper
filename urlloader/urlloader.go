@@ -1,4 +1,4 @@
-package domains
+package urlloader
 
 import (
 	"bufio"
@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	domainURL = "https://tranco-list.eu/download/Z249G/full"
-	tmpFile   = "domain_list.txt"
+	domainsURL = "https://tranco-list.eu/download/Z249G/full"
+	tmpFile    = "domain_list.txt"
 )
 
 type URLLoader struct {
@@ -24,7 +24,7 @@ func New() (*URLLoader, error) {
 	tmpFilePath := filepath.Join(os.TempDir(), tmpFile)
 	_, err := os.Stat(tmpFilePath)
 	if os.IsNotExist(err) {
-		err := downloadFile(domainURL, tmpFilePath)
+		err := downloadFile(domainsURL, tmpFilePath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to download file: %w", err)
 		}
