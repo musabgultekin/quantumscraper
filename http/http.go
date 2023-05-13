@@ -1,10 +1,15 @@
 package http
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/fasthttpproxy"
+	"golang.org/x/net/html/charset"
+	"golang.org/x/text/transform"
+	"io"
+	"mime"
 	"time"
 )
 
@@ -13,7 +18,7 @@ var client = &fasthttp.Client{
 	DisableHeaderNamesNormalizing: true,
 	MaxResponseBodySize:           1024 * 1024 * 10,
 	ReadTimeout:                   time.Second * 180,
-	Dial:                          fasthttpproxy.FasthttpProxyHTTPDialerTimeout(time.Second * 180),
+	Dial:                          fasthttpproxy.FasthttpProxyHTTPDialerTimeout(time.Second * 60),
 	//Dial: (&fasthttp.TCPDialer{
 	//	Concurrency:      1000,
 	//	DNSCacheDuration: time.Hour,
@@ -48,20 +53,32 @@ func Get(requestURI string) ([]byte, error) {
 	req.Header.Set(fasthttp.HeaderUserAgent, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36")
 
 	// Do request
-	err := client.Do(req, res)
+	err := client.DoRedirects(req, res, 10)
 	if err != nil {
 		return nil, fmt.Errorf("client do: %w", err)
 	}
 
 	body, err := handleResponse(res)
 	if err != nil {
-		return nil, fmt.Errorf("handle response: %w", err)
+		return nil, fmt.Errorf("handle response err: %w", err)
 	}
 
 	return body, nil
 }
 
 func handleResponse(res *fasthttp.Response) ([]byte, error) {
+
+	// Check if its HTML
+	contentType := res.Header.Peek(fasthttp.HeaderContentType)
+	if !bytes.Contains(contentType, []byte("html")) {
+		return nil, fmt.Errorf("not HTML")
+	}
+
+	// Check status code
+	if res.StatusCode() != 200 {
+		return nil, fmt.Errorf("status not 200")
+	}
+
 	// Read and decode response body
 	body, err := decodeResponse(res)
 	if err != nil {
@@ -94,6 +111,30 @@ func decodeResponse(res *fasthttp.Response) ([]byte, error) {
 		}
 	default:
 		body = res.Body()
+	}
+
+	// Charset Decoding
+	contentType := res.Header.Peek(fasthttp.HeaderContentType)
+	_, params, err := mime.ParseMediaType(string(contentType))
+	if err != nil {
+		return nil, fmt.Errorf("parse media type: %w", err)
+	}
+	if cs, ok := params["charset"]; ok {
+		encoding, name := charset.Lookup(cs)
+		if encoding == nil {
+			return nil, fmt.Errorf("charset lookup: %v", name)
+		}
+
+		if encoding != nil {
+			// If encoding is not nil, wrap body in a reader that converts from the given encoding to UTF-8.
+			bodyReader := transform.NewReader(bytes.NewReader(body), encoding.NewDecoder())
+			// Read the entire body, now decoded to UTF-8.
+			var err error
+			body, err = io.ReadAll(bodyReader)
+			if err != nil {
+				return nil, fmt.Errorf("read all: %w", err)
+			}
+		}
 	}
 
 	return body, nil
