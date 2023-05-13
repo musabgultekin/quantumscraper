@@ -37,7 +37,7 @@ func run() error {
 
 	// Queue URLs
 	go func() {
-		if err := startQueueingURLs(queue); err != nil {
+		if err := startQueueingURLs("https://tranco-list.eu/download/Z249G/full", queue); err != nil {
 			log.Fatal(err)
 		}
 	}()
@@ -72,8 +72,8 @@ func run() error {
 	return nil
 }
 
-func startQueueingURLs(queue *storage.Queue) error {
-	urlLoader, err := urlloader.New()
+func startQueueingURLs(urlListURL string, queue *storage.Queue) error {
+	urlLoader, err := urlloader.New(urlListURL)
 	if err != nil {
 		return fmt.Errorf("url loader: %w", err)
 	}
@@ -85,7 +85,7 @@ func startQueueingURLs(queue *storage.Queue) error {
 			}
 			return fmt.Errorf("next domain: %w", err)
 		}
- 
+
 		if queue.IsStopped() {
 			break
 		}

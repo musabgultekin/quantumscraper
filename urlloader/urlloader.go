@@ -11,20 +11,20 @@ import (
 )
 
 const (
-	domainsURL = "https://tranco-list.eu/download/Z249G/full"
-	tmpFile    = "domain_list.txt"
+	tmpFile = "domain_list.txt"
 )
 
 type URLLoader struct {
+	url     string
 	file    *os.File
 	scanner *bufio.Scanner
 }
 
-func New() (*URLLoader, error) {
+func New(url string) (*URLLoader, error) {
 	tmpFilePath := filepath.Join(os.TempDir(), tmpFile)
 	_, err := os.Stat(tmpFilePath)
 	if os.IsNotExist(err) {
-		err := downloadFile(domainsURL, tmpFilePath)
+		err := downloadFile(url, tmpFilePath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to download file: %w", err)
 		}
@@ -36,7 +36,7 @@ func New() (*URLLoader, error) {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 	scanner := bufio.NewScanner(file)
-	return &URLLoader{file: file, scanner: scanner}, nil
+	return &URLLoader{url: url, file: file, scanner: scanner}, nil
 }
 
 func (dl *URLLoader) NextURL() (string, error) {
