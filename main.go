@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-const concurrency = 10
+const concurrency = 1000
 
 func main() {
 	if err := run(); err != nil {
@@ -102,7 +102,7 @@ func startQueueingDomains(queue *storage.Queue) error {
 // startConsumer start consumer and wait for messages
 func startWorkers(queue *storage.Queue) (*nsq.Consumer, error) {
 	consumerConfig := nsq.NewConfig()
-	consumerConfig.MaxInFlight = 10
+	consumerConfig.MaxInFlight = 100
 	consumer, err := nsq.NewConsumer(storage.NsqTopic, storage.NsqChannel, consumerConfig)
 	if err != nil {
 		return nil, fmt.Errorf("nsq new consumer: %w", err)
