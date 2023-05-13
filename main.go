@@ -56,7 +56,7 @@ func run() error {
 	}
 
 	// -------------------------------------------------------------------------
-	// App Starting
+	// Initialization
 
 	nsqdServer, err := storage.NewNSQDServer()
 	if err != nil {
@@ -66,6 +66,9 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("visited url storage creation: %w", err)
 	}
+
+	// -------------------------------------------------------------------------
+	// App Starting
 
 	// Queue URLs
 	go func() {
