@@ -1,6 +1,7 @@
 package urlloader
 
 import (
+	"compress/gzip"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
 type URLLoader struct {
@@ -34,9 +36,22 @@ func New(url string, filepath string) (*URLLoader, error) {
 		}
 		defer out.Close()
 
-		_, err = io.Copy(out, resp.Body)
-		if err != nil {
-			return nil, fmt.Errorf("failed to write to file: %w", err)
+		if strings.HasSuffix(url, ".gz") {
+			gz, err := gzip.NewReader(resp.Body)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create gzip reader: %w", err)
+			}
+			defer gz.Close()
+
+			_, err = io.Copy(out, gz)
+			if err != nil {
+				return nil, fmt.Errorf("failed to write to file: %w", err)
+			}
+		} else {
+			_, err = io.Copy(out, resp.Body)
+			if err != nil {
+				return nil, fmt.Errorf("failed to write to file: %w", err)
+			}
 		}
 	}
 
