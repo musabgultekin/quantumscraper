@@ -18,7 +18,7 @@ type URLLoader struct {
 func New(url string, filepath string) (*URLLoader, error) {
 	_, err := os.Stat(filepath)
 	if os.IsNotExist(err) {
-		log.Println("Downloading", url)
+		log.Println("Downloading 👀", url)
 		resp, err := http.Get(url)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load URL: %w", err)
@@ -47,7 +47,7 @@ func New(url string, filepath string) (*URLLoader, error) {
 
 	reader := csv.NewReader(file)
 
-	// Read and discard the header
+	// Read and discard the header 🗑️
 	_, err = reader.Read()
 	if err != nil {
 		return nil, fmt.Errorf("failed to read header: %w", err)
