@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strconv"
 
 	"github.com/musabgultekin/quantumscraper/http"
 	"github.com/musabgultekin/quantumscraper/storage"
@@ -37,34 +36,38 @@ func (worker *Worker) HandleMessage(message *nsq.Message) error {
 		return nil
 	}
 
-	for _, link := range links {
-		if err := worker.queue.AddURL(link); err != nil {
-			return fmt.Errorf("failed to add URL to visited storage: %w", err)
-		}
-	}
+	// Queue new links
+	_ = links
+	// for _, link := range links {
+	// 	if err := worker.queue.AddURL(link); err != nil {
+	// 		return fmt.Errorf("failed to add URL to visited storage: %w", err)
+	// 	}
+	// }
 
 	return nil
 }
 
 func StartWorkers(concurrency int, queue *storage.Queue) (consumers []*nsq.Consumer, err error) {
-	for i := 0; i < concurrency; i++ {
-		// Consumer initialization
-		consumerConfig := nsq.NewConfig()
-		consumerConfig.MaxInFlight = 1
-		consumer, err := nsq.NewConsumer(storage.NsqTopic+strconv.Itoa(i), storage.NsqChannel, consumerConfig)
-		if err != nil {
-			return nil, fmt.Errorf("nsq new consumer: %w", err)
-		}
-		consumer.AddHandler(&Worker{
-			queue:       queue,
-			rateLimiter: rate.NewLimiter(1, 1),
-		})
-		// Connect
-		if err := consumer.ConnectToNSQD(storage.NsqServer); err != nil {
-			return nil, fmt.Errorf("connect to nsqd: %w", err)
-		}
-		consumers = append(consumers, consumer)
+
+	// for i := 0; i < concurrency; i++ {
+	// Consumer initialization
+	consumerConfig := nsq.NewConfig()
+	consumerConfig.MaxInFlight = 1
+	// consumer, err := nsq.NewConsumer(storage.NsqTopic+strconv.Itoa(i), storage.NsqChannel, consumerConfig)
+	consumer, err := nsq.NewConsumer(storage.NsqTopic, storage.NsqChannel, consumerConfig)
+	if err != nil {
+		return nil, fmt.Errorf("nsq new consumer: %w", err)
 	}
+	consumer.AddHandler(&Worker{
+		queue:       queue,
+		rateLimiter: rate.NewLimiter(1, 1),
+	})
+	// Connect
+	if err := consumer.ConnectToNSQD(storage.NsqServer); err != nil {
+		return nil, fmt.Errorf("connect to nsqd: %w", err)
+	}
+	consumers = append(consumers, consumer)
+	// }
 
 	return
 }
