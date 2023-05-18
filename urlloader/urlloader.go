@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/musabgultekin/quantumscraper/storage"
 )
 
 type URLLoader struct {
@@ -90,4 +92,31 @@ func (l *URLLoader) Next() (string, error) {
 
 func (l *URLLoader) Close() error {
 	return l.file.Close()
+}
+
+func StartQueueingURLs(urlListURL string, urlListPath string, queue *storage.Queue) error {
+	urlLoader, err := New(urlListURL, urlListPath)
+	if err != nil {
+		return fmt.Errorf("url loader: %w", err)
+	}
+	defer urlLoader.Close()
+
+	for {
+		targetURL, err := urlLoader.Next()
+		if err != nil {
+			return fmt.Errorf("next domain: %w", err)
+		}
+		if targetURL == "" {
+			log.Println("URL Loader end of file")
+			break // end of file
+		}
+		if queue.IsStopped() {
+			break
+		}
+		if err := queue.AddURL(targetURL); err != nil {
+			return fmt.Errorf("failed to add URL to visited storage: %w", err)
+		}
+
+	}
+	return nil
 }

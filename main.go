@@ -79,7 +79,7 @@ func run() error {
 
 	// Queue URLs
 	go func() {
-		if err := StartQueueingURLs(cfg.UrlList.URL, cfg.UrlList.CachePath, queue); err != nil {
+		if err := urlloader.StartQueueingURLs(cfg.UrlList.URL, cfg.UrlList.CachePath, queue); err != nil {
 			log.Fatal(err)
 		}
 	}()
@@ -118,32 +118,5 @@ func run() error {
 		log.Println("Queue CloseDB error:", err)
 	}
 
-	return nil
-}
-
-func StartQueueingURLs(urlListURL string, urlListPath string, queue *storage.Queue) error {
-	urlLoader, err := urlloader.New(urlListURL, urlListPath)
-	if err != nil {
-		return fmt.Errorf("url loader: %w", err)
-	}
-	defer urlLoader.Close()
-
-	for {
-		targetURL, err := urlLoader.Next()
-		if err != nil {
-			return fmt.Errorf("next domain: %w", err)
-		}
-		if targetURL == "" {
-			log.Println("URL Loader end of file")
-			break // end of file
-		}
-		if queue.IsStopped() {
-			break
-		}
-		if err := queue.AddURL(targetURL); err != nil {
-			return fmt.Errorf("failed to add URL to visited storage: %w", err)
-		}
-
-	}
 	return nil
 }
