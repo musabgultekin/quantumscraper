@@ -79,7 +79,7 @@ func run() error {
 
 	// Queue URLs
 	go func() {
-		if err := startQueueingURLs(cfg.UrlList.URL, cfg.UrlList.CachePath, queue); err != nil {
+		if err := StartQueueingURLs(cfg.UrlList.URL, cfg.UrlList.CachePath, queue); err != nil {
 			log.Fatal(err)
 		}
 	}()
@@ -121,7 +121,7 @@ func run() error {
 	return nil
 }
 
-func startQueueingURLs(urlListURL string, urlListPath string, queue *storage.Queue) error {
+func StartQueueingURLs(urlListURL string, urlListPath string, queue *storage.Queue) error {
 	urlLoader, err := urlloader.New(urlListURL, urlListPath)
 	if err != nil {
 		return fmt.Errorf("url loader: %w", err)
