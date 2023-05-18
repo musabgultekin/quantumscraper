@@ -30,6 +30,12 @@ func run() error {
 	// -------------------------------------------------------------------------
 	// Configuration
 
+	// Enforce proxy
+	if os.Getenv("HTTP_PROXY") == "" {
+		log.Println("Please set proxy with HTTP_PROXY environment variable")
+		os.Exit(1)
+	}
+
 	cfg := struct {
 		conf.Version
 		Crawler struct {
