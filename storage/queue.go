@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"hash"
 	"hash/fnv"
-	"net/url"
-	"strconv"
 	"strings"
 
 	"github.com/dgraph-io/badger/v3"
@@ -18,6 +16,10 @@ type Queue struct {
 	stopped     bool
 	hasher      hash.Hash64
 	workerCount int
+
+	// lastHostLock  sync.Mutex
+	// lastHost      string
+	// lastHostDelay time.Duration
 }
 
 func NewQueue(path string, workerCount int) (*Queue, error) {
@@ -62,12 +64,12 @@ func (store *Queue) IsStopped() bool {
 
 // TODO: Canonicalize links before everything
 func (store *Queue) AddURL(targetURL string) error {
-	targetURLParsed, err := url.Parse(targetURL)
-	if err != nil {
-		return fmt.Errorf("target url parse err: %w", err)
-	}
+	// targetURLParsed, err := url.Parse(targetURL)
+	// if err != nil {
+	// 	return fmt.Errorf("target url parse err: %w", err)
+	// }
 
-	err = store.db.Update(func(txn *badger.Txn) error {
+	err := store.db.Update(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(targetURL))
 		if err != nil && err != badger.ErrKeyNotFound {
 			return fmt.Errorf("failed to get url from badger db: %w", err)
@@ -90,7 +92,27 @@ func (store *Queue) AddURL(targetURL string) error {
 
 	// Publish if it doesn't exist
 	// Select worker based on hash of the host
-	selectedTopicName := NsqTopic + strconv.Itoa(store.selectAppropriateWorkerId(targetURLParsed.Host))
+	// selectedTopicName := NsqTopic + strconv.Itoa(store.selectAppropriateWorkerId(targetURLParsed.Host))
+	selectedTopicName := NsqTopic
+
+	// Add delay to the host (ratelimiting)
+	// NOTE: This is assuming that all URLs are ordered by their hostnames
+	// store.lastHostLock.Lock()
+	// {
+	// 	if store.lastHost != targetURLParsed.Host {
+	// 		store.lastHost = targetURLParsed.Host
+	// 		store.lastHostDelay = 0
+	// 	}
+	// 	store.lastHostDelay += time.Second
+	// 	if store.lastHostDelay > time.Hour {
+	// 		store.lastHostDelay = time.Hour // FIXME: Because NSQD has 1 hour limit for deferred messages, find a way to overcome this.
+	// 	}
+	// }
+	// store.lastHostLock.Unlock()
+
+	// time.Sleep(time.Millisecond * 10)
+
+	// if err := store.producer.DeferredPublish(selectedTopicName, store.lastHostDelay, []byte(targetURL)); err != nil {
 	if err := store.producer.Publish(selectedTopicName, []byte(targetURL)); err != nil {
 		return fmt.Errorf("producer publish: %w", err)
 	}
