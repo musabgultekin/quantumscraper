@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/ardanlabs/conf/v3"
+	"github.com/musabgultekin/quantumscraper/metrics"
 	"github.com/musabgultekin/quantumscraper/worker"
 )
 
@@ -68,6 +69,8 @@ func run() error {
 	// if err != nil {
 	// 	return fmt.Errorf("visited url storage creation: %w", err)
 	// }
+
+	go metrics.StartMetricsServer()
 
 	// -------------------------------------------------------------------------
 	// App Starting

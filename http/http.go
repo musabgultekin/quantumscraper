@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
+	"io"
+	"mime"
+	"time"
+
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/fasthttpproxy"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/transform"
-	"io"
-	"mime"
-	"time"
 )
 
 var client = &fasthttp.Client{
@@ -29,7 +30,7 @@ var client = &fasthttp.Client{
 	},
 }
 
-func Get(requestURI string) ([]byte, error) {
+func Get(requestURI string) ([]byte, int, error) {
 
 	// Acquire request and response from pool
 	req, res := fasthttp.AcquireRequest(), fasthttp.AcquireResponse()
@@ -56,15 +57,15 @@ func Get(requestURI string) ([]byte, error) {
 	// Do request
 	err := client.DoRedirects(req, res, 10)
 	if err != nil {
-		return nil, fmt.Errorf("client do: %w", err)
+		return nil, 0, fmt.Errorf("client do: %w", err)
 	}
 
 	body, err := handleResponse(res)
 	if err != nil {
-		return nil, fmt.Errorf("handle response err: %w", err)
+		return nil, 0, fmt.Errorf("handle response err: %w", err)
 	}
 
-	return body, nil
+	return body, res.StatusCode(), nil
 }
 
 func handleResponse(res *fasthttp.Response) ([]byte, error) {

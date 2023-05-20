@@ -24,7 +24,7 @@ func (worker *QueueWorker) HandleMessage(message *nsq.Message) error {
 	targetURL := string(message.Body)
 	log.Println("Fetching", targetURL)
 
-	resp, err := http.Get(targetURL)
+	resp, _, err := http.Get(targetURL)
 	if err != nil {
 		log.Println("http get err:", err, targetURL)
 		return nil

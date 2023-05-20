@@ -4,10 +4,14 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/musabgultekin/quantumscraper/http"
+	"github.com/musabgultekin/quantumscraper/metrics"
 	"github.com/musabgultekin/quantumscraper/urlloader"
+	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/time/rate"
 )
 
@@ -38,7 +42,15 @@ func (worker *Worker) HandleUrl(targetURL string) error {
 
 	// log.Println("Fetching", targetURL)
 
-	resp, err := http.Get(targetURL)
+	requestStartTime := time.Now()
+	metrics.RequestInFlightCount.Inc()
+
+	resp, status, err := http.Get(targetURL)
+
+	metrics.RequestInFlightCount.Dec()
+	metrics.RequestCount.With(prometheus.Labels{"code": strconv.Itoa(status)}).Inc()
+	metrics.RequestLatency.With(prometheus.Labels{"code": strconv.Itoa(status)}).Observe(float64(time.Since(requestStartTime) / time.Second))
+
 	if err != nil {
 		return fmt.Errorf("http get err: %w", err)
 	}
