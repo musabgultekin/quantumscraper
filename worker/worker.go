@@ -49,7 +49,7 @@ func (worker *Worker) HandleUrl(targetURL string) error {
 
 	metrics.RequestInFlightCount.Dec()
 	metrics.RequestCount.With(prometheus.Labels{"code": strconv.Itoa(status)}).Inc()
-	metrics.RequestLatency.With(prometheus.Labels{"code": strconv.Itoa(status)}).Observe(float64(time.Since(requestStartTime) / time.Second))
+	metrics.RequestLatency.With(prometheus.Labels{"code": strconv.Itoa(status)}).Observe(time.Since(requestStartTime).Seconds())
 
 	if err != nil {
 		return fmt.Errorf("http get err: %w", err)
@@ -73,13 +73,6 @@ func StartWorkers(urlListURL string, urlListCachePath string, wg *sync.WaitGroup
 	}
 	defer urlLoader.Close()
 
-	log.Println("Loading URLs")
-	allURLs, err := urlLoader.GetAllURLs()
-	if err != nil {
-		return fmt.Errorf("url loader get all urls: %w", err)
-	}
-	log.Println("URLs loaded. Host count:", len(allURLs))
-
 	log.Println("Starting workers")
 	wg.Add(concurrency)
 	for i := 0; i < concurrency; i++ {
@@ -87,10 +80,18 @@ func StartWorkers(urlListURL string, urlListCachePath string, wg *sync.WaitGroup
 		go worker.Work()
 	}
 
-	// Send Host URLs
-	for _, urlStrings := range allURLs {
+	log.Println("Queuing URLs for each host")
+	for {
+		urlStrings, err := urlLoader.LoadNextHostURLs()
+		if err != nil {
+			return fmt.Errorf("url loader load next domain urls: %w", err)
+		}
+		if len(urlStrings) == 0 {
+			break // end of file
+		}
 		hostURLsQueue <- urlStrings
 	}
+	log.Println("All URLs queued")
 
 	// All hosts queued, we can close the queue
 	close(hostURLsQueue)

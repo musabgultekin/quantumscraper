@@ -16,9 +16,10 @@ import (
 )
 
 type URLLoader struct {
-	file     *os.File
-	reader   *csv.Reader
-	lastHost string
+	file            *os.File
+	reader          *csv.Reader
+	currentHost     string
+	currentHostURLs []string
 }
 
 func New(url string, filepath string) (*URLLoader, error) {
@@ -111,6 +112,35 @@ func (l *URLLoader) GetAllURLs() (map[string][]string, error) {
 	}
 
 	return hostURLs, nil
+}
+
+func (l *URLLoader) LoadNextHostURLs() ([]string, error) {
+	for {
+		urlString, err := l.Next()
+		if err != nil {
+			return nil, fmt.Errorf("next url: %w", err)
+		}
+		if urlString == "" {
+			log.Println("URL Loader end of file")
+			break // end of file
+		}
+		urlParsed, err := url.Parse(urlString)
+		if err != nil {
+			return nil, fmt.Errorf("parse url: %w, %s", err, urlString)
+		}
+		if l.currentHost != "" && l.currentHost != urlParsed.Host {
+			// host changed, return the URLs of the previous host
+			result := l.currentHostURLs
+			l.currentHostURLs = []string{urlString} // start a new buffer for the new host
+			l.currentHost = urlParsed.Host
+			return result, nil
+		}
+		// same host, add the URL to the buffer
+		l.currentHostURLs = append(l.currentHostURLs, urlString)
+		l.currentHost = urlParsed.Host
+	}
+	// end of file, return the URLs of the last host
+	return l.currentHostURLs, nil
 }
 
 func (l *URLLoader) Close() error {

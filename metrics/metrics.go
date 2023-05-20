@@ -17,7 +17,7 @@ var (
 	RequestLatency = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "request_latency",
 		Help:    "Request latencies",
-		Buckets: prometheus.ExponentialBuckets(0.1, 2, 10),
+		Buckets: prometheus.ExponentialBuckets(0.02, 2, 15),
 	}, []string{"code"})
 
 	RequestInFlightCount = promauto.NewGauge(prometheus.GaugeOpts{

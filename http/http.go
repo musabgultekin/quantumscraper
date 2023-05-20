@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"os"
 	"time"
 
 	"github.com/valyala/fasthttp"
@@ -20,7 +21,8 @@ var client = &fasthttp.Client{
 	MaxResponseBodySize:           1024 * 1024 * 10,
 	ReadBufferSize:                4096 * 2,
 	ReadTimeout:                   time.Second * 180,
-	Dial:                          fasthttpproxy.FasthttpProxyHTTPDialerTimeout(time.Second * 60),
+	Dial:                          fasthttpproxy.FasthttpHTTPDialerTimeout(os.Getenv("PROXY_URL"), time.Second*60),
+	// Dial:                          fasthttpproxy.FasthttpProxyHTTPDialerTimeout(time.Second * 60),
 	//Dial: (&fasthttp.TCPDialer{
 	//	Concurrency:      1000,
 	//	DNSCacheDuration: time.Hour,
