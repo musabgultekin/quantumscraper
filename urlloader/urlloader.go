@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
@@ -15,8 +16,9 @@ import (
 )
 
 type URLLoader struct {
-	file   *os.File
-	reader *csv.Reader
+	file     *os.File
+	reader   *csv.Reader
+	lastHost string
 }
 
 func New(url string, filepath string) (*URLLoader, error) {
@@ -90,6 +92,27 @@ func (l *URLLoader) Next() (string, error) {
 	return record[0], nil // return only the first column
 }
 
+func (l *URLLoader) GetAllURLs() (map[string][]string, error) {
+	var hostURLs = make(map[string][]string)
+	for {
+		urlString, err := l.Next()
+		if err != nil {
+			return nil, fmt.Errorf("next domain: %w", err)
+		}
+		if urlString == "" {
+			log.Println("URL Loader end of file")
+			break // end of file
+		}
+		urlParsed, err := url.Parse(urlString)
+		if err != nil {
+			return nil, fmt.Errorf("parse url: %w, %s", err, urlString)
+		}
+		hostURLs[urlParsed.Host] = append(hostURLs[urlParsed.Host], urlString)
+	}
+
+	return hostURLs, nil
+}
+
 func (l *URLLoader) Close() error {
 	return l.file.Close()
 }
@@ -102,18 +125,18 @@ func StartQueueingURLs(urlListURL string, urlListPath string, queue *storage.Que
 	defer urlLoader.Close()
 
 	for {
-		targetURL, err := urlLoader.Next()
+		urlString, err := urlLoader.Next()
 		if err != nil {
 			return fmt.Errorf("next domain: %w", err)
 		}
-		if targetURL == "" {
+		if urlString == "" {
 			log.Println("URL Loader end of file")
 			break // end of file
 		}
 		if queue.IsStopped() {
 			break
 		}
-		if err := queue.AddURL(targetURL); err != nil {
+		if err := queue.AddURL(urlString); err != nil {
 			return fmt.Errorf("failed to add URL to visited storage: %w", err)
 		}
 

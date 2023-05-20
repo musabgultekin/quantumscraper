@@ -5,14 +5,9 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/signal"
-	"path"
-	"syscall"
-	"time"
+	"sync"
 
 	"github.com/ardanlabs/conf/v3"
-	"github.com/musabgultekin/quantumscraper/storage"
-	"github.com/musabgultekin/quantumscraper/urlloader"
 	"github.com/musabgultekin/quantumscraper/worker"
 )
 
@@ -65,58 +60,63 @@ func run() error {
 	// -------------------------------------------------------------------------
 	// Initialization
 
-	nsqdServer, err := storage.NewNSQDServer()
-	if err != nil {
-		return fmt.Errorf("start nsqd embedded server: %w", err)
-	}
-	queue, err := storage.NewQueue(path.Join("data/visited_urls"), cfg.Crawler.Concurrency)
-	if err != nil {
-		return fmt.Errorf("visited url storage creation: %w", err)
-	}
+	// nsqdServer, err := storage.NewNSQDServer()
+	// if err != nil {
+	// 	return fmt.Errorf("start nsqd embedded server: %w", err)
+	// }
+	// queue, err := storage.NewQueue(path.Join("data/visited_urls"), cfg.Crawler.Concurrency)
+	// if err != nil {
+	// 	return fmt.Errorf("visited url storage creation: %w", err)
+	// }
 
 	// -------------------------------------------------------------------------
 	// App Starting
 
 	// Queue URLs
-	go func() {
-		if err := urlloader.StartQueueingURLs(cfg.UrlList.URL, cfg.UrlList.CachePath, queue); err != nil {
-			log.Fatal(err)
-		}
-	}()
+	// go func() {
+	// 	if err := urlloader.StartQueueingURLs(cfg.UrlList.URL, cfg.UrlList.CachePath, queue); err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// }()
 
 	// Start queue workers
-	consumers, err := worker.StartQueueWorkers(cfg.Crawler.Concurrency, queue)
-	if err != nil {
-		return fmt.Errorf("worker process: %w", err)
-	}
+	// consumers, err := worker.StartQueueWorkers(cfg.Crawler.Concurrency, queue)
+	// if err != nil {
+	// 	return fmt.Errorf("worker process: %w", err)
+	// }
+	var workerWg sync.WaitGroup
+	worker.StartWorkers(cfg.UrlList.URL, cfg.UrlList.CachePath, &workerWg)
 
 	// -------------------------------------------------------------------------
 	// Shutdown
 
 	// Wait until SIGTERM
-	shutdown := make(chan os.Signal, 1)
-	signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
-	select {
-	case <-shutdown:
-	case <-nsqdServer.Error():
-		log.Println("nsqd server error! scraping will be stopped: ", err)
-	}
-	log.Println("Stopping signal received")
+	// shutdown := make(chan os.Signal, 1)
+	// signal.Notify(shutdown, syscall.SIGINT, syscall.SIGTERM)
+	// select {
+	// case <-shutdown:
+	// 	// case <-nsqdServer.Error():
+	// 	// 	log.Println("nsqd server error! scraping will be stopped: ", err)
+	// }
+	// log.Println("Stopping signal received")
 
 	// Wait until closed
-	queue.StopSignal()
-	time.Sleep(time.Millisecond * 100)
-	for _, consumer := range consumers {
-		consumer.Stop()
-	}
-	for _, consumer := range consumers {
-		<-consumer.StopChan
-	}
-	queue.StopProducer()
-	nsqdServer.Stop()
-	if err := queue.CloseDB(); err != nil {
-		log.Println("Queue CloseDB error:", err)
-	}
+	workerWg.Wait()
+	// queue.StopSignal()
+	// time.Sleep(time.Millisecond * 100)
+	// for _, consumer := range consumers {
+	// 	consumer.Stop()
+	// }
+	// for _, consumer := range consumers {
+	// 	<-consumer.StopChan
+	// }
+	// queue.StopProducer()
+	// nsqdServer.Stop()
+	// if err := queue.CloseDB(); err != nil {
+	// 	log.Println("Queue CloseDB error:", err)
+	// }
+
+	log.Panic("Scraping successfully finished")
 
 	return nil
 }
