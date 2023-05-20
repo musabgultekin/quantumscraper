@@ -85,7 +85,7 @@ func run() error {
 	// 	return fmt.Errorf("worker process: %w", err)
 	// }
 	var workerWg sync.WaitGroup
-	worker.StartWorkers(cfg.UrlList.URL, cfg.UrlList.CachePath, &workerWg)
+	worker.StartWorkers(cfg.UrlList.URL, cfg.UrlList.CachePath, &workerWg, cfg.Crawler.Concurrency)
 
 	// -------------------------------------------------------------------------
 	// Shutdown

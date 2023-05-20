@@ -11,8 +11,6 @@ import (
 	"golang.org/x/time/rate"
 )
 
-const workerCount = 200
-
 var hostURLsQueue = make(chan []string)
 
 type Worker struct {
@@ -56,7 +54,7 @@ func (worker *Worker) HandleUrl(targetURL string) error {
 	return nil
 }
 
-func StartWorkers(urlListURL string, urlListCachePath string, wg *sync.WaitGroup) error {
+func StartWorkers(urlListURL string, urlListCachePath string, wg *sync.WaitGroup, concurrency int) error {
 	urlLoader, err := urlloader.New(urlListURL, urlListCachePath)
 	if err != nil {
 		return fmt.Errorf("url loader: %w", err)
@@ -71,8 +69,8 @@ func StartWorkers(urlListURL string, urlListCachePath string, wg *sync.WaitGroup
 	log.Println("URLs loaded. Host count:", len(allURLs))
 
 	log.Println("Starting workers")
-	wg.Add(workerCount)
-	for i := 0; i < workerCount; i++ {
+	wg.Add(concurrency)
+	for i := 0; i < concurrency; i++ {
 		worker := Worker{rateLimiter: rate.NewLimiter(0.5, 1), wg: wg}
 		go worker.Work()
 	}
