@@ -84,8 +84,8 @@ func run() error {
 		}
 	}()
 
-	// Start workers
-	consumers, err := worker.StartWorkers(cfg.Crawler.Concurrency, queue)
+	// Start queue workers
+	consumers, err := worker.StartQueueWorkers(cfg.Crawler.Concurrency, queue)
 	if err != nil {
 		return fmt.Errorf("worker process: %w", err)
 	}

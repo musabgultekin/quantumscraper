@@ -11,12 +11,12 @@ import (
 	"golang.org/x/time/rate"
 )
 
-type Worker struct {
+type QueueWorker struct {
 	queue       *storage.Queue
 	rateLimiter *rate.Limiter
 }
 
-func (worker *Worker) HandleMessage(message *nsq.Message) error {
+func (worker *QueueWorker) HandleMessage(message *nsq.Message) error {
 	if err := worker.rateLimiter.Wait(context.TODO()); err != nil {
 		return fmt.Errorf("rate limiter: %w", err)
 	}
@@ -47,7 +47,7 @@ func (worker *Worker) HandleMessage(message *nsq.Message) error {
 	return nil
 }
 
-func StartWorkers(concurrency int, queue *storage.Queue) (consumers []*nsq.Consumer, err error) {
+func StartQueueWorkers(concurrency int, queue *storage.Queue) (consumers []*nsq.Consumer, err error) {
 
 	// for i := 0; i < concurrency; i++ {
 	// Consumer initialization
@@ -58,7 +58,7 @@ func StartWorkers(concurrency int, queue *storage.Queue) (consumers []*nsq.Consu
 	if err != nil {
 		return nil, fmt.Errorf("nsq new consumer: %w", err)
 	}
-	consumer.AddHandler(&Worker{
+	consumer.AddHandler(&QueueWorker{
 		queue:       queue,
 		rateLimiter: rate.NewLimiter(1, 1),
 	})
