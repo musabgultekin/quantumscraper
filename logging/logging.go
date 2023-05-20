@@ -6,13 +6,13 @@ import (
 )
 
 type FilteredWriter struct {
-	w io.Writer
+	io.Writer
 }
 
 func (fw *FilteredWriter) Write(p []byte) (n int, err error) {
-	if strings.Contains(string(p), "Unsolicited response received") {
+	if strings.Contains(string(p), "Unsolicited response received on idle HTTP channel starting with") {
 		// Discard unwanted log messages
 		return len(p), nil
 	}
-	return fw.w.Write(p)
+	return fw.Writer.Write(p)
 }

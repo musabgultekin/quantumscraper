@@ -28,7 +28,8 @@ func (worker *Worker) Work() error {
 	for hostUrlList := range hostURLsQueue {
 		for _, targetURL := range hostUrlList {
 			if err := worker.HandleUrl(targetURL); err != nil {
-				log.Println("handle url:", err, targetURL)
+				// log.Println("handle url:", err, targetURL)
+				continue
 			}
 		}
 	}
@@ -55,14 +56,14 @@ func (worker *Worker) HandleUrl(targetURL string) error {
 		return fmt.Errorf("http get err: %w", err)
 	}
 
-	// links, err := extractLinksFromHTML(targetURL, resp)
-	// if err != nil {
-	// 	return fmt.Errorf("error extract links from html: %w", err)
-	// }
+	links, err := extractLinksFromHTML(targetURL, resp)
+	if err != nil {
+		return fmt.Errorf("error extract links from html: %w", err)
+	}
 
 	// Queue new links
-	_ = resp
-	// _ = links
+	// _ = resp
+	_ = links
 	return nil
 }
 

@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/ardanlabs/conf/v3"
+	"github.com/musabgultekin/quantumscraper/logging"
 	"github.com/musabgultekin/quantumscraper/metrics"
 	"github.com/musabgultekin/quantumscraper/worker"
 )
@@ -25,10 +26,11 @@ func run() error {
 
 	// -------------------------------------------------------------------------
 	// Configuration
+	log.SetOutput(&logging.FilteredWriter{os.Stderr})
 
 	// Enforce proxy
 	if os.Getenv("PROXY_URL") == "" {
-		log.Println("Please set proxy with HTTP_PROXY environment variable")
+		log.Println("Please set proxy environment variable")
 		os.Exit(1)
 	}
 

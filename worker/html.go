@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"log"
 	"net/url"
 	"path/filepath"
 	"strings"
@@ -27,7 +26,7 @@ func extractLinksFromHTML(pageURL string, body []byte) (fullURLs []string, err e
 	for _, htmlLinkString := range htmlLinkStrings {
 		absoluteHTMLink, err := pageURLParsed.Parse(htmlLinkString)
 		if err != nil {
-			log.Println("WARN: page link parse error:", err, pageURL)
+			// log.Println("WARN: page link parse error:", err, pageURL)
 			continue
 		}
 		fullURLs = append(fullURLs, absoluteHTMLink.String())
