@@ -122,7 +122,11 @@ func (l *URLLoader) LoadNextHostURLs() ([]string, error) {
 		}
 		if urlString == "" {
 			log.Println("URL Loader end of file")
-			break // end of file
+			// end of file, return the URLs of the last host and reset the state
+			result := l.currentHostURLs
+			l.currentHostURLs = nil
+			l.currentHost = ""
+			return result, nil
 		}
 		urlParsed, err := url.Parse(urlString)
 		if err != nil {
@@ -139,8 +143,8 @@ func (l *URLLoader) LoadNextHostURLs() ([]string, error) {
 		l.currentHostURLs = append(l.currentHostURLs, urlString)
 		l.currentHost = urlParsed.Host
 	}
-	// end of file, return the URLs of the last host
-	return l.currentHostURLs, nil
+	// This line should never be reached because the end of file is handled above
+	return nil, errors.New("unexpected end of LoadNextHostURLs")
 }
 
 func (l *URLLoader) Close() error {
