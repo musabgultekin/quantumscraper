@@ -15,7 +15,7 @@ import (
 	"golang.org/x/text/transform"
 )
 
-var client = &fasthttp.Client{
+var clientFast = &fasthttp.Client{
 	NoDefaultUserAgentHeader:      true,
 	DisableHeaderNamesNormalizing: true,
 	MaxResponseBodySize:           1024 * 1024 * 10,
@@ -32,7 +32,7 @@ var client = &fasthttp.Client{
 	},
 }
 
-func Get(requestURI string) ([]byte, int, error) {
+func GetFast(requestURI string) ([]byte, int, error) {
 
 	// Acquire request and response from pool
 	req, res := fasthttp.AcquireRequest(), fasthttp.AcquireResponse()
@@ -57,12 +57,12 @@ func Get(requestURI string) ([]byte, int, error) {
 	req.Header.Set(fasthttp.HeaderUserAgent, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36")
 
 	// Do request
-	err := client.DoRedirects(req, res, 10)
+	err := clientFast.DoRedirects(req, res, 10)
 	if err != nil {
 		return nil, 0, fmt.Errorf("client do: %w", err)
 	}
 
-	body, err := handleResponse(res)
+	body, err := handleResponseFast(res)
 	if err != nil {
 		return nil, 0, fmt.Errorf("handle response err: %w", err)
 	}
@@ -70,7 +70,7 @@ func Get(requestURI string) ([]byte, int, error) {
 	return body, res.StatusCode(), nil
 }
 
-func handleResponse(res *fasthttp.Response) ([]byte, error) {
+func handleResponseFast(res *fasthttp.Response) ([]byte, error) {
 
 	// Check if its HTML
 	contentType := res.Header.Peek(fasthttp.HeaderContentType)
@@ -84,7 +84,7 @@ func handleResponse(res *fasthttp.Response) ([]byte, error) {
 	}
 
 	// Read and decode response body
-	body, err := decodeResponse(res)
+	body, err := decodeResponseFast(res)
 	if err != nil {
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
@@ -92,7 +92,7 @@ func handleResponse(res *fasthttp.Response) ([]byte, error) {
 	return body, nil
 }
 
-func decodeResponse(res *fasthttp.Response) ([]byte, error) {
+func decodeResponseFast(res *fasthttp.Response) ([]byte, error) {
 	var err error
 	var body []byte
 

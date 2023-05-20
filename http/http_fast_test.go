@@ -1,12 +1,13 @@
 package http
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetBrotli(t *testing.T) {
-	resp, err := Get("https://httpbin.org/brotli")
+	resp, _, err := GetFast("https://httpbin.org/brotli")
 	assert.NoError(t, err)
 	assert.NotNil(t, resp)
 }
