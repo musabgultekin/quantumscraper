@@ -15,7 +15,7 @@ import (
 	"golang.org/x/time/rate"
 )
 
-var hostURLsQueue = make(chan []string)
+var hostURLsQueue = make(chan []string, 100)
 
 type Worker struct {
 	rateLimiter *rate.Limiter
@@ -67,8 +67,13 @@ func (worker *Worker) HandleUrl(targetURL string) error {
 	return nil
 }
 
-func StartWorkers(urlListURL string, urlListCachePath string, wg *sync.WaitGroup, concurrency int) error {
-	urlLoader, err := urlloader.New(urlListURL, urlListCachePath)
+func StartWorkers(urlListURL string, urlListCachePath string, parquetDir string, wg *sync.WaitGroup, concurrency int) error {
+	// urlLoader, err := urlloader.New(urlListURL, urlListCachePath)
+	// if err != nil {
+	// 	return fmt.Errorf("url loader: %w", err)
+	// }
+	// defer urlLoader.Close()
+	urlLoader, err := urlloader.NewParquet(parquetDir)
 	if err != nil {
 		return fmt.Errorf("url loader: %w", err)
 	}

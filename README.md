@@ -9,3 +9,10 @@ This is not your average, general-purpose scraper. QuantumScraper is focused on 
 - Advanced URL management and storage using **BadgerDB**
 - Fast HTTP networking with **fasthttp**
 
+
+
+## Data Preparation
+
+Setup your AWS CLI, then download latest CommonCrawl Index
+
+    aws s3 sync s3://commoncrawl/cc-index/table/cc-main/warc/crawl=CC-MAIN-2023-14/subset=warc/ cc-index/

@@ -40,8 +40,9 @@ func run() error {
 			Concurrency int `conf:"default:100"`
 		}
 		UrlList struct {
-			URL       string `conf:"default:https://tranco-list.eu/download/Z249G/full"`
-			CachePath string `conf:"default:data/url_cache.csv"`
+			URL        string `conf:"default:https://tranco-list.eu/download/Z249G/full"`
+			CachePath  string `conf:"default:data/url_cache.csv"`
+			ParquetDir string `conf:"default:cc-index/"`
 		}
 	}{
 		Version: conf.Version{
@@ -90,7 +91,7 @@ func run() error {
 	// 	return fmt.Errorf("worker process: %w", err)
 	// }
 	var workerWg sync.WaitGroup
-	worker.StartWorkers(cfg.UrlList.URL, cfg.UrlList.CachePath, &workerWg, cfg.Crawler.Concurrency)
+	worker.StartWorkers(cfg.UrlList.URL, cfg.UrlList.CachePath, cfg.UrlList.ParquetDir, &workerWg, cfg.Crawler.Concurrency)
 
 	// -------------------------------------------------------------------------
 	// Shutdown
