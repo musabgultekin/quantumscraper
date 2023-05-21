@@ -1,9 +1,11 @@
 package worker
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -15,15 +17,30 @@ import (
 	"golang.org/x/time/rate"
 )
 
-var hostURLsQueue = make(chan []string, 100)
+var hostURLsQueue = make(chan []string, 1000)
 
 type Worker struct {
+	id          int
 	rateLimiter *rate.Limiter
 	wg          *sync.WaitGroup
+	file        *os.File
+}
+
+func NewWorker(id int, wg *sync.WaitGroup) (*Worker, error) {
+	filename := fmt.Sprintf("data/worker_links/%d.txt", id)
+	file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("opening file: %w", err)
+	}
+
+	rateLimiter := rate.NewLimiter(0.5, 1)
+
+	return &Worker{id: id, rateLimiter: rateLimiter, wg: wg, file: file}, nil
 }
 
 func (worker *Worker) Work() error {
 	defer worker.wg.Done()
+	defer worker.file.Close()
 
 	for hostUrlList := range hostURLsQueue {
 		for _, targetURL := range hostUrlList {
@@ -61,10 +78,25 @@ func (worker *Worker) HandleUrl(targetURL string) error {
 		return fmt.Errorf("error extract links from html: %w", err)
 	}
 
+	err = worker.SaveLinksToFile(links)
+	if err != nil {
+		return fmt.Errorf("error saving links to file: %w", err)
+	}
+
 	// Queue new links
 	// _ = resp
 	_ = links
 	return nil
+}
+
+func (worker *Worker) SaveLinksToFile(links map[string]struct{}) error {
+	writer := bufio.NewWriter(worker.file)
+	for link := range links {
+		if _, err := writer.WriteString(link + "\n"); err != nil {
+			return fmt.Errorf("writing to file: %w", err)
+		}
+	}
+	return writer.Flush()
 }
 
 func StartWorkers(urlListURL string, urlListCachePath string, parquetDir string, wg *sync.WaitGroup, concurrency int) error {
@@ -82,7 +114,10 @@ func StartWorkers(urlListURL string, urlListCachePath string, parquetDir string,
 	log.Println("Starting workers")
 	wg.Add(concurrency)
 	for i := 0; i < concurrency; i++ {
-		worker := Worker{rateLimiter: rate.NewLimiter(0.5, 1), wg: wg}
+		worker, err := NewWorker(i, wg)
+		if err != nil {
+			return fmt.Errorf("new worker: %w", err)
+		}
 		go worker.Work()
 	}
 

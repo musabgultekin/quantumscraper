@@ -42,7 +42,7 @@ func run() error {
 		UrlList struct {
 			URL        string `conf:"default:https://tranco-list.eu/download/Z249G/full"`
 			CachePath  string `conf:"default:data/url_cache.csv"`
-			ParquetDir string `conf:"default:cc-index/"`
+			ParquetDir string `conf:"default:data/cc-index/"`
 		}
 	}{
 		Version: conf.Version{

@@ -11,7 +11,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-func extractLinksFromHTML(pageURL string, body []byte) (fullURLs []string, err error) {
+func extractLinksFromHTML(pageURL string, body []byte) (linkSet map[string]struct{}, err error) {
 	pageURLParsed, err := url.Parse(pageURL)
 	if err != nil {
 		return nil, fmt.Errorf("page url parse: %w", err)
@@ -22,6 +22,9 @@ func extractLinksFromHTML(pageURL string, body []byte) (fullURLs []string, err e
 		return nil, fmt.Errorf("extract raw links from html: %w", err)
 	}
 
+	// Use a map to ensure uniqueness of links
+	linkSet = make(map[string]struct{})
+
 	// Convert to absolute
 	for _, htmlLinkString := range htmlLinkStrings {
 		absoluteHTMLink, err := pageURLParsed.Parse(htmlLinkString)
@@ -29,7 +32,7 @@ func extractLinksFromHTML(pageURL string, body []byte) (fullURLs []string, err e
 			// log.Println("WARN: page link parse error:", err, pageURL)
 			continue
 		}
-		fullURLs = append(fullURLs, absoluteHTMLink.String())
+		linkSet[absoluteHTMLink.String()] = struct{}{}
 	}
 
 	return
