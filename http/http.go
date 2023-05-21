@@ -4,15 +4,15 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"mime"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/klauspost/compress/flate"
+	"github.com/klauspost/compress/gzip"
 	"golang.org/x/net/html/charset"
-	"golang.org/x/text/transform"
 )
 
 var client = &http.Client{
@@ -24,6 +24,8 @@ var client = &http.Client{
 		},
 	},
 }
+
+const DefaultMaxBody int64 = 1024 * 1024 * 1024 // 1GB
 
 func GetProxyUrl() func(*http.Request) (*url.URL, error) {
 	proxyUrlStr := os.Getenv("PROXY_URL")
@@ -41,7 +43,7 @@ func Get(requestURI string) ([]byte, int, error) {
 		return nil, 0, fmt.Errorf("new request: %w", err)
 	}
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
-	// req.Header.Set("Accept-Encoding", "gzip, deflate, br")
+	req.Header.Set("Accept-Encoding", "gzip, deflate")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("Sec-Ch-Ua", `"Google Chrome";v="113", "Chromium";v="113", "Not-A.Brand";v="24"`)
 	req.Header.Set("Sec-Ch-Ua-Mobile", "?0")
@@ -89,36 +91,39 @@ func handleResponse(res *http.Response) ([]byte, error) {
 	return body, nil
 }
 
-func decodeResponse(res *http.Response) ([]byte, error) {
+func decodeResponse(resp *http.Response) ([]byte, error) {
+
+	// Limit response body reading
+	// bodyReader := io.LimitReader(resp.Body, DefaultMaxBody)
+
+	// Fast Decompress
 	var err error
-	var body []byte
+	var bodyReadCloser io.ReadCloser
+	switch resp.Header.Get("Content-Encoding") {
+	case "gzip":
+		bodyReadCloser, err = gzip.NewReader(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("gzip reader: %w", err)
+		}
+		defer bodyReadCloser.Close()
+	case "deflate":
+		bodyReadCloser = flate.NewReader(resp.Body)
+		defer bodyReadCloser.Close()
+	default:
+		bodyReadCloser = resp.Body
+	}
 
 	// Charset Decoding
-	contentType := res.Header.Get("Content-Type")
-	_, params, err := mime.ParseMediaType(contentType)
+	contentType := resp.Header.Get("Content-Type")
+	bodyReader, err := charset.NewReader(bodyReadCloser, contentType)
 	if err != nil {
-		return nil, fmt.Errorf("parse media type: %w", err)
+		return nil, fmt.Errorf("charset detection error on content-type %s: %w", contentType, err)
 	}
-	if cs, ok := params["charset"]; ok {
-		encoding, name := charset.Lookup(cs)
-		if encoding == nil {
-			return nil, fmt.Errorf("charset lookup: %v", name)
-		}
 
-		if encoding != nil {
-			// If encoding is not nil, wrap body in a reader that converts from the given encoding to UTF-8.
-			bodyReader := transform.NewReader(res.Body, encoding.NewDecoder())
-			// Read the entire body, now decoded to UTF-8.
-			body, err = io.ReadAll(bodyReader)
-			if err != nil {
-				return nil, fmt.Errorf("read all: %w", err)
-			}
-		}
-	} else {
-		body, err = io.ReadAll(res.Body)
-		if err != nil {
-			return nil, fmt.Errorf("read all: %w", err)
-		}
+	// Read Body
+	body, err := io.ReadAll(bodyReader)
+	if err != nil {
+		return nil, fmt.Errorf("reading body: %w", err)
 	}
 
 	return body, nil
