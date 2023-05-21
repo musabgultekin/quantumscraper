@@ -64,7 +64,7 @@ func Get(requestURI string) ([]byte, int, error) {
 
 	body, err := handleResponse(res)
 	if err != nil {
-		return nil, 0, fmt.Errorf("handle response err: %w", err)
+		return nil, res.StatusCode, fmt.Errorf("handle response err: %w", err)
 	}
 
 	return body, res.StatusCode, nil
