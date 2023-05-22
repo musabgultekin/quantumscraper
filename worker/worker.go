@@ -1,11 +1,9 @@
 package worker
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -18,29 +16,23 @@ import (
 )
 
 var hostURLsQueue = make(chan []string, 1000)
+var foundLinks = make(map[string]struct{})
+var foundLinksChan = make(chan map[string]struct{}, 1000)
 
 type Worker struct {
 	id          int
 	rateLimiter *rate.Limiter
 	wg          *sync.WaitGroup
-	file        *os.File
 }
 
 func NewWorker(id int, wg *sync.WaitGroup) (*Worker, error) {
-	filename := fmt.Sprintf("data/worker_links/%d.txt", id)
-	file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return nil, fmt.Errorf("opening file: %w", err)
-	}
-
 	rateLimiter := rate.NewLimiter(0.5, 1)
 
-	return &Worker{id: id, rateLimiter: rateLimiter, wg: wg, file: file}, nil
+	return &Worker{id: id, rateLimiter: rateLimiter, wg: wg}, nil
 }
 
 func (worker *Worker) Work() error {
 	defer worker.wg.Done()
-	defer worker.file.Close()
 
 	for hostUrlList := range hostURLsQueue {
 		for _, targetURL := range hostUrlList {
@@ -57,6 +49,7 @@ func (worker *Worker) HandleUrl(targetURL string) error {
 	if err := worker.rateLimiter.Wait(context.TODO()); err != nil {
 		panic(err) // This should never happen, but we need to know if it happens.
 	}
+	// time.Sleep(time.Second * 2)
 
 	// log.Println("Fetching", targetURL)
 
@@ -78,9 +71,8 @@ func (worker *Worker) HandleUrl(targetURL string) error {
 		return fmt.Errorf("error extract links from html: %w", err)
 	}
 
-	err = worker.SaveLinksToFile(links)
-	if err != nil {
-		return fmt.Errorf("error saving links to file: %w", err)
+	if err := worker.SaveLinks(links); err != nil {
+		return fmt.Errorf("save links: %w", err)
 	}
 
 	// Queue new links
@@ -89,14 +81,16 @@ func (worker *Worker) HandleUrl(targetURL string) error {
 	return nil
 }
 
-func (worker *Worker) SaveLinksToFile(links map[string]struct{}) error {
-	writer := bufio.NewWriter(worker.file)
-	for link := range links {
-		if _, err := writer.WriteString(link + "\n"); err != nil {
-			return fmt.Errorf("writing to file: %w", err)
-		}
-	}
-	return writer.Flush()
+func (worker *Worker) SaveLinks(links map[string]struct{}) error {
+	foundLinksChan <- links
+	// writer := bufio.NewWriter(foundLinksFile)
+	// for link := range links {
+	// 	if _, err := writer.WriteString(link + "\n"); err != nil {
+	// 		return fmt.Errorf("writing to file: %w", err)
+	// 	}
+	// }
+	// return writer.Flush()
+	return nil
 }
 
 func StartWorkers(urlListURL string, urlListCachePath string, parquetDir string, wg *sync.WaitGroup, concurrency int) error {
@@ -120,6 +114,16 @@ func StartWorkers(urlListURL string, urlListCachePath string, parquetDir string,
 		}
 		go worker.Work()
 	}
+
+	// Save loaded URLs
+	go func() {
+		for linksBatch := range foundLinksChan {
+			for link := range linksBatch {
+				foundLinks[link] = struct{}{}
+			}
+			metrics.FoundURLsCount.Set(float64(len(foundLinks)))
+		}
+	}()
 
 	log.Println("Queuing URLs for each host")
 	for {

@@ -26,6 +26,11 @@ var (
 		Name: "request_inflight_count",
 		Help: "Inflight requests",
 	})
+
+	FoundURLsCount = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "found_urls_count",
+		Help: "The total number of unique URLs found during scraping",
+	})
 )
 
 func StartMetricsServer() {
