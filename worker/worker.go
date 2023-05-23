@@ -10,6 +10,7 @@ import (
 
 	"github.com/musabgultekin/quantumscraper/http"
 	"github.com/musabgultekin/quantumscraper/metrics"
+	"github.com/musabgultekin/quantumscraper/storage"
 	"github.com/musabgultekin/quantumscraper/urlloader"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/time/rate"
@@ -71,25 +72,15 @@ func (worker *Worker) HandleUrl(targetURL string) error {
 		return fmt.Errorf("error extract links from html: %w", err)
 	}
 
-	if err := worker.SaveLinks(links); err != nil {
-		return fmt.Errorf("save links: %w", err)
-	}
+	foundLinksChan <- links
+
+	// if err := worker.SaveLinks(links); err != nil {
+	// 	return fmt.Errorf("save links: %w", err)
+	// }
 
 	// Queue new links
 	// _ = resp
 	_ = links
-	return nil
-}
-
-func (worker *Worker) SaveLinks(links map[string]struct{}) error {
-	foundLinksChan <- links
-	// writer := bufio.NewWriter(foundLinksFile)
-	// for link := range links {
-	// 	if _, err := writer.WriteString(link + "\n"); err != nil {
-	// 		return fmt.Errorf("writing to file: %w", err)
-	// 	}
-	// }
-	// return writer.Flush()
 	return nil
 }
 
@@ -121,7 +112,14 @@ func StartWorkers(urlListURL string, urlListCachePath string, parquetDir string,
 			for link := range linksBatch {
 				foundLinks[link] = struct{}{}
 			}
-			metrics.FoundURLsCount.Set(float64(len(foundLinks)))
+			length := len(foundLinks)
+			metrics.FoundURLsCount.Set(float64(length))
+			if length >= 10_000_000 {
+				if err := storage.WriteLinksToFileRandomFilename(foundLinks, "data/"); err != nil {
+					panic(err)
+				}
+				foundLinks = make(map[string]struct{})
+			}
 		}
 	}()
 
