@@ -16,3 +16,8 @@ This is not your average, general-purpose scraper. QuantumScraper is focused on 
 Setup your AWS CLI, then download latest CommonCrawl Index
 
     aws s3 sync s3://commoncrawl/cc-index/table/cc-main/warc/crawl=CC-MAIN-2023-14/subset=warc/ cc-index/
+
+
+## Increase OS Limits
+
+    ulimit -n 1048576

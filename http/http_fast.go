@@ -4,15 +4,12 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
-	"io"
-	"mime"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/fasthttpproxy"
-	"golang.org/x/net/html/charset"
-	"golang.org/x/text/transform"
 )
 
 var clientFast = &fasthttp.Client{
@@ -21,7 +18,7 @@ var clientFast = &fasthttp.Client{
 	MaxResponseBodySize:           1024 * 1024 * 10,
 	ReadBufferSize:                4096 * 2,
 	ReadTimeout:                   time.Second * 180,
-	Dial:                          fasthttpproxy.FasthttpHTTPDialerTimeout(os.Getenv("PROXY_URL"), time.Second*60),
+	Dial:                          fasthttpproxy.FasthttpHTTPDialerTimeout(strings.TrimPrefix(os.Getenv("PROXY_URL"), "http://"), time.Second*60),
 	// Dial:                          fasthttpproxy.FasthttpProxyHTTPDialerTimeout(time.Second * 60),
 	//Dial: (&fasthttp.TCPDialer{
 	//	Concurrency:      1000,
@@ -59,12 +56,12 @@ func GetFast(requestURI string) ([]byte, int, error) {
 	// Do request
 	err := clientFast.DoRedirects(req, res, 10)
 	if err != nil {
-		return nil, 0, fmt.Errorf("client do: %w", err)
+		return nil, res.StatusCode(), fmt.Errorf("client do: %w", err)
 	}
 
 	body, err := handleResponseFast(res)
 	if err != nil {
-		return nil, 0, fmt.Errorf("handle response err: %w", err)
+		return nil, res.StatusCode(), fmt.Errorf("handle response err: %w", err)
 	}
 
 	return body, res.StatusCode(), nil
@@ -80,7 +77,7 @@ func handleResponseFast(res *fasthttp.Response) ([]byte, error) {
 
 	// Check status code
 	if res.StatusCode() != 200 {
-		return nil, fmt.Errorf("status not 200")
+		return nil, fmt.Errorf("status not 200: %v", res.StatusCode())
 	}
 
 	// Read and decode response body
@@ -118,28 +115,28 @@ func decodeResponseFast(res *fasthttp.Response) ([]byte, error) {
 	}
 
 	// Charset Decoding
-	contentType := res.Header.Peek(fasthttp.HeaderContentType)
-	_, params, err := mime.ParseMediaType(string(contentType))
-	if err != nil {
-		return nil, fmt.Errorf("parse media type: %w", err)
-	}
-	if cs, ok := params["charset"]; ok {
-		encoding, name := charset.Lookup(cs)
-		if encoding == nil {
-			return nil, fmt.Errorf("charset lookup: %v", name)
-		}
+	// contentType := res.Header.Peek(fasthttp.HeaderContentType)
+	// _, params, err := mime.ParseMediaType(string(contentType))
+	// if err != nil {
+	// 	return nil, fmt.Errorf("parse media type: %w", err)
+	// }
+	// if cs, ok := params["charset"]; ok {
+	// 	encoding, name := charset.Lookup(cs)
+	// 	if encoding == nil {
+	// 		return nil, fmt.Errorf("charset lookup: %v", name)
+	// 	}
 
-		if encoding != nil {
-			// If encoding is not nil, wrap body in a reader that converts from the given encoding to UTF-8.
-			bodyReader := transform.NewReader(bytes.NewReader(body), encoding.NewDecoder())
-			// Read the entire body, now decoded to UTF-8.
-			var err error
-			body, err = io.ReadAll(bodyReader)
-			if err != nil {
-				return nil, fmt.Errorf("read all: %w", err)
-			}
-		}
-	}
+	// 	if encoding != nil {
+	// 		// If encoding is not nil, wrap body in a reader that converts from the given encoding to UTF-8.
+	// 		bodyReader := transform.NewReader(bytes.NewReader(body), encoding.NewDecoder())
+	// 		// Read the entire body, now decoded to UTF-8.
+	// 		var err error
+	// 		body, err = io.ReadAll(bodyReader)
+	// 		if err != nil {
+	// 			return nil, fmt.Errorf("read all: %w", err)
+	// 		}
+	// 	}
+	// }
 
 	return body, nil
 }

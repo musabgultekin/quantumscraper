@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -12,12 +13,14 @@ import (
 	"github.com/musabgultekin/quantumscraper/metrics"
 	"github.com/musabgultekin/quantumscraper/urlloader"
 	"github.com/prometheus/client_golang/prometheus"
+	"go.uber.org/zap"
 	"golang.org/x/time/rate"
 )
 
 var hostURLsQueue = make(chan []string, 1000)
 var foundLinks = make(map[string]struct{})
-var foundLinksChan = make(chan map[string]struct{}, 1000)
+var foundLinksChan = make(chan map[string]struct{}, 5000)
+var logger, _ = zap.NewDevelopment()
 
 type Worker struct {
 	id          int
@@ -37,7 +40,12 @@ func (worker *Worker) Work() error {
 	for hostUrlList := range hostURLsQueue {
 		for _, targetURL := range hostUrlList {
 			if err := worker.HandleUrl(targetURL); err != nil {
+				if strings.Contains(err.Error(), "could not connect to proxy: zproxy.lum-superproxy.io:22225 status code: 403") {
+					continue
+				}
 				// log.Println("handle url:", err, targetURL)
+				// logger.Error("handle url", zap.Error(err))
+				// logger.Debug(err.Error())
 				continue
 			}
 		}
@@ -56,7 +64,7 @@ func (worker *Worker) HandleUrl(targetURL string) error {
 	requestStartTime := time.Now()
 	metrics.RequestInFlightCount.Inc()
 
-	resp, status, err := http.Get(targetURL)
+	resp, status, err := http.GetFast(targetURL)
 
 	metrics.RequestInFlightCount.Dec()
 	metrics.RequestCount.With(prometheus.Labels{"code": strconv.Itoa(status)}).Inc()
@@ -113,7 +121,7 @@ func StartWorkers(urlListURL string, urlListCachePath string, parquetDir string,
 			}
 			length := len(foundLinks)
 			metrics.FoundURLsCount.Set(float64(length))
-			if length >= 10_000_000 {
+			if length >= 100_000_000 {
 				// 	if err := storage.WriteLinksToFileRandomFilename(foundLinks, "data/"); err != nil {
 				// 		panic(err)
 				// 	}
