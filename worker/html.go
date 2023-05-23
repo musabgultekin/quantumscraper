@@ -38,53 +38,6 @@ func extractLinksFromHTML(pageURL string, body []byte) (linkSet map[string]struc
 	return
 }
 
-// func extractRawLinksFromHTML(body []byte) ([]string, error) {
-// 	acceptedExtensions := []string{".asp", ".aspx", ".htm", ".html", ".jsp", ".jsx", ".php", ".php3", ".php4", ".php5", ".phtml"}
-// 	var links []string
-
-// 	// bodyReader := bytes.NewReader(body)
-// 	lolhtmlWriter, err := lolhtml.NewWriter(io.Discard, &lolhtml.Handlers{
-// 		ElementContentHandler: []lolhtml.ElementContentHandler{{
-// 			Selector: "a",
-// 			ElementHandler: func(e *lolhtml.Element) lolhtml.RewriterDirective {
-// 				href, err := e.AttributeValue("href")
-// 				if err != nil {
-// 					log.Println("Attibute reading error", err)
-// 					return lolhtml.Continue
-// 				}
-
-// 				href = strings.TrimSpace(href)
-
-// 				if !strings.HasPrefix(href, "http") {
-// 					return lolhtml.Continue
-// 				}
-
-// 				ext := filepath.Ext(href)
-// 				if ext == "" || contains(acceptedExtensions, ext) {
-// 					links = append(links, href)
-// 				}
-
-// 				return lolhtml.Continue
-// 			},
-// 		}},
-// 	})
-// 	if err != nil {
-// 		return nil, fmt.Errorf("lolhtml writer: %w", err)
-// 	}
-
-// 	// copy from the bytes reader to lolhtml writer
-// 	if _, err := lolhtmlWriter.Write(body); err != nil {
-// 		return nil, fmt.Errorf("lolhtml copy err: %w", err)
-// 	}
-
-// 	// explicitly close the writer and flush the remaining content
-// 	if err := lolhtmlWriter.Close(); err != nil {
-// 		return nil, fmt.Errorf("lolhtml close: %w", err)
-// 	}
-
-// 	return nil, nil
-// }
-
 func extractRawLinksFromHTML(body []byte) ([]string, error) {
 	var links []string
 
