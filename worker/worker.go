@@ -10,7 +10,6 @@ import (
 
 	"github.com/musabgultekin/quantumscraper/http"
 	"github.com/musabgultekin/quantumscraper/metrics"
-	"github.com/musabgultekin/quantumscraper/storage"
 	"github.com/musabgultekin/quantumscraper/urlloader"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/time/rate"
@@ -115,9 +114,9 @@ func StartWorkers(urlListURL string, urlListCachePath string, parquetDir string,
 			length := len(foundLinks)
 			metrics.FoundURLsCount.Set(float64(length))
 			if length >= 10_000_000 {
-				if err := storage.WriteLinksToFileRandomFilename(foundLinks, "data/"); err != nil {
-					panic(err)
-				}
+				// 	if err := storage.WriteLinksToFileRandomFilename(foundLinks, "data/"); err != nil {
+				// 		panic(err)
+				// 	}
 				foundLinks = make(map[string]struct{})
 			}
 		}

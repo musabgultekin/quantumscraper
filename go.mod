@@ -4,10 +4,13 @@ go 1.20
 
 require (
 	github.com/ardanlabs/conf/v3 v3.1.5
+	github.com/coolspring8/go-lolhtml v0.2.4
 	github.com/dgraph-io/badger/v3 v3.2103.5
+	github.com/klauspost/compress v1.16.5
 	github.com/nsqio/go-nsq v1.1.0
 	github.com/nsqio/nsq v1.2.1
 	github.com/prometheus/client_golang v1.15.1
+	github.com/segmentio/parquet-go v0.0.0-20230427215636-d483faba23a5
 	github.com/stretchr/testify v1.8.1
 	github.com/valyala/fasthttp v1.47.0
 	golang.org/x/net v0.10.0
@@ -33,7 +36,6 @@ require (
 	github.com/google/flatbuffers v23.5.9+incompatible // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
-	github.com/klauspost/compress v1.16.5 // indirect
 	github.com/mattn/go-runewidth v0.0.9 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/nsqio/go-diskqueue v1.1.0 // indirect
@@ -46,7 +48,6 @@ require (
 	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
 	github.com/segmentio/encoding v0.3.5 // indirect
-	github.com/segmentio/parquet-go v0.0.0-20230427215636-d483faba23a5 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/sys v0.8.0 // indirect
