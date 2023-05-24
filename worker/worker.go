@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 	"github.com/musabgultekin/quantumscraper/metrics"
 	"github.com/musabgultekin/quantumscraper/urlloader"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/valyala/fasthttp"
 	"go.uber.org/zap"
 	"golang.org/x/time/rate"
 )
@@ -40,12 +42,25 @@ func (worker *Worker) Work() error {
 	for hostUrlList := range hostURLsQueue {
 		for _, targetURL := range hostUrlList {
 			if err := worker.HandleUrl(targetURL); err != nil {
-				if strings.Contains(err.Error(), "could not connect to proxy: zproxy.lum-superproxy.io:22225 status code: 403") {
+				if strings.Contains(err.Error(), "no such host") {
+					break // Since we dont have the host anymore, no need to continue
+				}
+				if strings.Contains(err.Error(), "could not connect to proxy:") &&
+					strings.Contains(err.Error(), "status code: 403") {
+					continue
+				}
+				if strings.Contains(err.Error(), "status not 200") {
+					continue
+				}
+				if strings.Contains(err.Error(), "not HTML") {
+					continue
+				}
+				if errors.Is(err, fasthttp.ErrConnectionClosed) {
 					continue
 				}
 				// log.Println("handle url:", err, targetURL)
 				// logger.Error("handle url", zap.Error(err))
-				// logger.Debug(err.Error())
+				logger.Debug(err.Error())
 				continue
 			}
 		}
@@ -57,9 +72,9 @@ func (worker *Worker) HandleUrl(targetURL string) error {
 	if err := worker.rateLimiter.Wait(context.TODO()); err != nil {
 		panic(err) // This should never happen, but we need to know if it happens.
 	}
-	// time.Sleep(time.Second * 2)
 
 	// log.Println("Fetching", targetURL)
+	// logger.Debug("Fetching", zap.String("url", targetURL))
 
 	requestStartTime := time.Now()
 	metrics.RequestInFlightCount.Inc()
@@ -69,6 +84,10 @@ func (worker *Worker) HandleUrl(targetURL string) error {
 	metrics.RequestInFlightCount.Dec()
 	metrics.RequestCount.With(prometheus.Labels{"code": strconv.Itoa(status)}).Inc()
 	metrics.RequestLatency.With(prometheus.Labels{"code": strconv.Itoa(status)}).Observe(time.Since(requestStartTime).Seconds())
+
+	if status == fasthttp.StatusTooManyRequests {
+		time.Sleep(time.Second * 5)
+	}
 
 	if err != nil {
 		return fmt.Errorf("http get err: %w", err)
