@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"net/url"
 	"path/filepath"
 	"strings"
 
@@ -12,10 +11,10 @@ import (
 )
 
 func extractLinksFromHTML(pageURL string, body []byte) (linkSet map[string]struct{}, err error) {
-	pageURLParsed, err := url.Parse(pageURL)
-	if err != nil {
-		return nil, fmt.Errorf("page url parse: %w", err)
-	}
+	// pageURLParsed, err := url.Parse(pageURL)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("page url parse: %w", err)
+	// }
 
 	htmlLinkStrings, err := extractRawLinksFromHTML(body)
 	if err != nil {
@@ -27,12 +26,17 @@ func extractLinksFromHTML(pageURL string, body []byte) (linkSet map[string]struc
 
 	// Convert to absolute
 	for _, htmlLinkString := range htmlLinkStrings {
-		absoluteHTMLink, err := pageURLParsed.Parse(htmlLinkString)
-		if err != nil {
-			// log.Println("WARN: page link parse error:", err, pageURL)
+		if strings.HasPrefix(htmlLinkString, "http") {
+			linkSet[htmlLinkString] = struct{}{}
 			continue
 		}
-		linkSet[absoluteHTMLink.String()] = struct{}{}
+		// absoluteHTMLink, err := pageURLParsed.Parse(htmlLinkString)
+		// if err != nil {
+		// 	// log.Println("WARN: page link parse error:", err, pageURL)
+		// 	continue
+		// }
+		// absoluteHTMLLinkString := absoluteHTMLink.String()
+		// linkSet[absoluteHTMLLinkString] = struct{}{}
 	}
 
 	return
@@ -58,7 +62,7 @@ func extractRawLinksFromHTML(body []byte) ([]string, error) {
 					key, val, moreAttr = z.TagAttr()
 					if string(key) == "href" && len(val) != 0 {
 						valString := strings.TrimSpace(string(val))
-						if !strings.HasPrefix(valString, "http") {
+						if strings.HasPrefix(valString, "#") {
 							break
 						}
 						acceptedExtensions := []string{".asp", ".aspx", ".htm", ".html", ".jsp", ".jsx", ".php", ".php3", ".php4", ".php5", ".phtml"}
