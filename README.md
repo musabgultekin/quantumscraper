@@ -9,12 +9,12 @@ This is not your average, general-purpose scraper. QuantumScraper is focused on 
 - Built-in **NSQD** server for URL queuing
 - Advanced URL management and storage using **BadgerDB**
 
-## Data Preparation
+## Data Preparation
 
 Setup your AWS CLI, then download latest columnar CommonCrawl Index
 
     aws s3 sync s3://commoncrawl/cc-index/table/cc-main/warc/crawl=CC-MAIN-2023-14/subset=warc/ cc-index/
 
-## Increase OS Limits
+## Increase OS Limits
 
     ulimit -n 1048576
