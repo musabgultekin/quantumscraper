@@ -1,0 +1,77 @@
+package http
+
+import (
+	"bufio"
+	"encoding/base64"
+	"net"
+	"strings"
+	"time"
+
+	"github.com/valyala/fasthttp"
+)
+
+// FasthttpHTTPDialer returns a fasthttp.DialFunc that dials using
+// the provided HTTP proxy.
+//
+// Example usage:
+//
+//	c := &fasthttp.Client{
+//		Dial: fasthttpproxy.FasthttpHTTPDialer("username:password@localhost:9050"),
+//	}
+func FasthttpHTTPDialerProxy(proxy string) fasthttp.DialFunc {
+	return FasthttpHTTPDialerProxyTimeout(proxy, 0)
+}
+
+// FasthttpHTTPDialerTimeout returns a fasthttp.DialFunc that dials using
+// the provided HTTP proxy using the given timeout.
+//
+// Example usage:
+//
+//	c := &fasthttp.Client{
+//		Dial: fasthttpproxy.FasthttpHTTPDialerTimeout("username:password@localhost:9050", time.Second * 2),
+func FasthttpHTTPDialerProxyTimeout(proxy string, timeout time.Duration) fasthttp.DialFunc {
+	var auth string
+	if strings.Contains(proxy, "@") {
+		index := strings.LastIndex(proxy, "@")
+		auth = base64.StdEncoding.EncodeToString([]byte(proxy[:index]))
+		proxy = proxy[index+1:]
+	}
+
+	return func(addr string) (net.Conn, error) {
+		var conn net.Conn
+		var err error
+		if timeout == 0 {
+			conn, err = FasthttpDialer.Dial(proxy)
+		} else {
+			conn, err = FasthttpDialer.DialTimeout(proxy, timeout)
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		req := "CONNECT " + addr + " HTTP/1.1\r\nHost: " + addr + "\r\n"
+		if auth != "" {
+			req += "Proxy-Authorization: Basic " + auth + "\r\n"
+		}
+		req += "\r\n"
+
+		if _, err := conn.Write([]byte(req)); err != nil {
+			return nil, err
+		}
+
+		res := fasthttp.AcquireResponse()
+		defer fasthttp.ReleaseResponse(res)
+
+		res.SkipBody = true
+
+		if err := res.Read(bufio.NewReader(conn)); err != nil {
+			conn.Close()
+			return nil, err
+		}
+		// if res.Header.StatusCode() != 200 {
+		// 	conn.Close()
+		// 	return nil, fmt.Errorf("could not connect to proxy: %s status code: %d", proxy, res.Header.StatusCode())
+		// }
+		return conn, nil
+	}
+}

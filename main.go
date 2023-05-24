@@ -73,6 +73,10 @@ func run() error {
 	// 	return fmt.Errorf("visited url storage creation: %w", err)
 	// }
 
+	// if _, err := http.FetchReliableDNSRecords("https://public-dns.info/nameserver/us.json"); err != nil {
+	// 	return fmt.Errorf("dns server loading error: %w", err)
+	// }
+
 	go metrics.StartMetricsServer()
 
 	// -------------------------------------------------------------------------

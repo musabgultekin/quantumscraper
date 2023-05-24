@@ -6,24 +6,28 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
 	"time"
 
 	"github.com/valyala/fasthttp"
-	"github.com/valyala/fasthttp/fasthttpproxy"
 )
+
+var FasthttpDialer = &fasthttp.TCPDialer{
+	Concurrency:      1000, // Concurrent Dials
+	DNSCacheDuration: fasthttp.DefaultDNSCacheDuration * 60,
+	Resolver:         DnsResolver,
+}
 
 var clientFast = &fasthttp.Client{
 	NoDefaultUserAgentHeader:      true,
 	DisableHeaderNamesNormalizing: true,
 	MaxResponseBodySize:           1024 * 1024 * 10,
-	ReadBufferSize:                4096 * 2,
+	ReadBufferSize:                4096 * 3,
 	ReadTimeout:                   time.Second * 180,
-	Dial:                          fasthttpproxy.FasthttpHTTPDialerTimeout(strings.TrimPrefix(os.Getenv("PROXY_URL"), "http://"), time.Second*60),
-	// Dial:                          fasthttpproxy.FasthttpProxyHTTPDialerTimeout(time.Second * 60),
-	//Dial: (&fasthttp.TCPDialer{
-	//	Concurrency:      1000,
-	//	DNSCacheDuration: time.Hour,
-	//}).Dial,
+	Dial:                          FasthttpHTTPDialerProxyTimeout(strings.TrimPrefix(os.Getenv("PROXY_URL"), "http://"), time.Second*60),
+	// Dial: func(addr string) (net.Conn, error) {
+	// 	return FasthttpDialer.DialTimeout(addr, time.Second*60)
+	// },
 	TLSConfig: &tls.Config{
 		InsecureSkipVerify: true,
 	},

@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -22,6 +23,9 @@ var client = &http.Client{
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
 		},
+		DialContext: (&net.Dialer{
+			Resolver: DnsResolver,
+		}).DialContext,
 	},
 }
 

@@ -4,7 +4,6 @@ go 1.20
 
 require (
 	github.com/ardanlabs/conf/v3 v3.1.5
-	github.com/coolspring8/go-lolhtml v0.2.4
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/klauspost/compress v1.16.5
 	github.com/nsqio/go-nsq v1.1.0
@@ -13,8 +12,8 @@ require (
 	github.com/segmentio/parquet-go v0.0.0-20230427215636-d483faba23a5
 	github.com/stretchr/testify v1.8.1
 	github.com/valyala/fasthttp v1.47.0
+	go.uber.org/zap v1.24.0
 	golang.org/x/net v0.10.0
-	golang.org/x/text v0.9.0
 	golang.org/x/time v0.3.0
 )
 
@@ -52,8 +51,8 @@ require (
 	go.opencensus.io v0.24.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	go.uber.org/zap v1.24.0 // indirect
 	golang.org/x/sys v0.8.0 // indirect
+	golang.org/x/text v0.9.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
