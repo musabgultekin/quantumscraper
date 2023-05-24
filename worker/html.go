@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net/url"
 	"path/filepath"
 	"strings"
 
@@ -11,10 +12,10 @@ import (
 )
 
 func extractLinksFromHTML(pageURL string, body []byte) (linkSet map[string]struct{}, err error) {
-	// pageURLParsed, err := url.Parse(pageURL)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("page url parse: %w", err)
-	// }
+	pageURLParsed, err := url.Parse(pageURL)
+	if err != nil {
+		return nil, fmt.Errorf("page url parse: %w", err)
+	}
 
 	htmlLinkStrings, err := extractRawLinksFromHTML(body)
 	if err != nil {
@@ -30,13 +31,12 @@ func extractLinksFromHTML(pageURL string, body []byte) (linkSet map[string]struc
 			linkSet[htmlLinkString] = struct{}{}
 			continue
 		}
-		// absoluteHTMLink, err := pageURLParsed.Parse(htmlLinkString)
-		// if err != nil {
-		// 	// log.Println("WARN: page link parse error:", err, pageURL)
-		// 	continue
-		// }
-		// absoluteHTMLLinkString := absoluteHTMLink.String()
-		// linkSet[absoluteHTMLLinkString] = struct{}{}
+		absoluteHTMLink, err := pageURLParsed.Parse(htmlLinkString)
+		if err != nil {
+			// log.Println("WARN: page link parse error:", err, pageURL)
+			continue
+		}
+		linkSet[absoluteHTMLink.String()] = struct{}{}
 	}
 
 	return
