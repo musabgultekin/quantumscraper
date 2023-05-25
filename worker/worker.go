@@ -1,7 +1,6 @@
 package worker
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -69,9 +68,9 @@ func (worker *Worker) Work() error {
 }
 
 func (worker *Worker) HandleUrl(targetURL string) error {
-	if err := worker.rateLimiter.Wait(context.TODO()); err != nil {
-		panic(err) // This should never happen, but we need to know if it happens.
-	}
+	// if err := worker.rateLimiter.Wait(context.TODO()); err != nil {
+	// 	panic(err) // This should never happen, but we need to know if it happens.
+	// }
 
 	// log.Println("Fetching", targetURL)
 	// logger.Debug("Fetching", zap.String("url", targetURL))
@@ -85,9 +84,9 @@ func (worker *Worker) HandleUrl(targetURL string) error {
 	metrics.RequestCount.With(prometheus.Labels{"code": strconv.Itoa(status)}).Inc()
 	metrics.RequestLatency.With(prometheus.Labels{"code": strconv.Itoa(status)}).Observe(time.Since(requestStartTime).Seconds())
 
-	if status == fasthttp.StatusTooManyRequests {
-		time.Sleep(time.Second * 5)
-	}
+	// if status == fasthttp.StatusTooManyRequests {
+	// 	time.Sleep(time.Second * 5)
+	// }
 
 	if err != nil {
 		return fmt.Errorf("http get err: %w", err)

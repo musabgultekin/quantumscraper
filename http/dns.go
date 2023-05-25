@@ -24,6 +24,8 @@ var dnsResolvers = []string{
 	"208.67.220.220",
 	"208.67.222.220",
 	"208.67.220.222",
+	"64.6.64.6", // Verisign
+	"64.6.65.6",
 }
 var currentResolverIndex uint64
 
