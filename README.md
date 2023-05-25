@@ -21,16 +21,15 @@ This is not your average, general-purpose scraper. QuantumScraper is focused on 
 To start off the scraper, we're initializing the scraper's state with the URLs of the CommonCrawl.
 While we don't need this, we're doing to speedup the scraper. We could start from the root domains priovided by [Domains Index](https://domains-index.com/) , [Zonefiles](https://zonefiles.io/), [Domains Monitor](https://domains-monitor.com/) or similar.
 
-Setup your AWS CLI, login to your AWS account. 
-Then download latest columnar CommonCrawl Index. (This might incur bandwidth costs)
+1. Alternative: Setup your AWS CLI, login to your AWS account. Then download latest columnar CommonCrawl Index. (This might incur bandwidth costs)
 
     aws s3 sync s3://commoncrawl/cc-index/table/cc-main/warc/crawl=CC-MAIN-2023-14/subset=warc/ cc-index/
 
-Without AWS CLI: Visit this link and download each of them one by one.
+2. Alternative Without AWS CLI: Visit this link and download each of them one by one.
 
     https://us-east-1.console.aws.amazon.com/s3/buckets/commoncrawl?prefix=cc-index%2Ftable%2Fcc-main%2Fwarc%2Fcrawl%3DCC-MAIN-2023-14%2Fsubset%3Dwarc%2F&region=us-east-1
 
-Without AWS CLI and AWS Account (Slow):
+3. Alternative Without AWS CLI and AWS Account (Slow):
 
 1. Visit: https://data.commoncrawl.org/crawl-data/index.html
 2. Visit the latest crawl, for example: https://data.commoncrawl.org/crawl-data/CC-MAIN-2023-14/index.html
