@@ -30,13 +30,10 @@ While we don't need this, we're doing to speedup the scraper. We could start fro
     https://us-east-1.console.aws.amazon.com/s3/buckets/commoncrawl?prefix=cc-index%2Ftable%2Fcc-main%2Fwarc%2Fcrawl%3DCC-MAIN-2023-14%2Fsubset%3Dwarc%2F&region=us-east-1
 
 3. Alternative Without AWS CLI and AWS Account (Slow):
-
-1. Visit: https://data.commoncrawl.org/crawl-data/index.html
-2. Visit the latest crawl, for example: https://data.commoncrawl.org/crawl-data/CC-MAIN-2023-14/index.html
-3. Download Columnar URL index files: For example: https://data.commoncrawl.org/crawl-data/CC-MAIN-2023-14/cc-index-table.paths.gz
-4. Unzip with gzip, and append "https://data.commoncrawl.org/" to each line and download all the files.
-
-### Manual Download
+    1. Visit: https://data.commoncrawl.org/crawl-data/index.html
+    2. Visit the latest crawl, for example: https://data.commoncrawl.org/crawl-data/CC-MAIN-2023-14/index.html
+    3. Download Columnar URL index files: For example: https://data.commoncrawl.org/crawl-data/CC-MAIN-2023-14/cc-index-table.paths.gz
+    4. Unzip with gzip, and append "https://data.commoncrawl.org/" to each line and download all the files.
 
 
 ## Increase OS Limits
