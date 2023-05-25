@@ -19,7 +19,7 @@ This is not your average, general-purpose scraper. QuantumScraper is focused on 
 ## URL Starter Data Preparation
 
 To start off the scraper, we're initializing the scraper's state with the URLs of the CommonCrawl.
-While we don't need this, we're doing to speedup the scraper. We could start from the root domains priovided by (Domains Index)[https://domains-index.com/] , (Zonefiles)[https://zonefiles.io/], (Domains Monitor)[https://domains-monitor.com/] or similar.
+While we don't need this, we're doing to speedup the scraper. We could start from the root domains priovided by [Domains Index](https://domains-index.com/) , [Zonefiles](https://zonefiles.io/), [Domains Monitor](https://domains-monitor.com/) or similar.
 
 Setup your AWS CLI, login to your AWS account. 
 Then download latest columnar CommonCrawl Index. (This might incur bandwidth costs)
