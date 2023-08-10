@@ -59,7 +59,7 @@ func (worker *Worker) Work() error {
 				}
 				// log.Println("handle url:", err, targetURL)
 				// logger.Error("handle url", zap.Error(err))
-				logger.Debug(err.Error())
+				logger.Debug(err.Error(), zap.String("url", targetURL))
 				continue
 			}
 		}
